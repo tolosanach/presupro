@@ -115,7 +115,7 @@ function startAutoRefresh() {
     if (historyView && historyView.classList.contains('active')) {
       refreshHistoryStatuses();
     }
-  }, 30000); /* every 30 seconds */
+  }, 15000); /* every 15 seconds */
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -132,6 +132,8 @@ document.addEventListener('DOMContentLoaded', function() {
   updatePreview();
   renderHistory();
   populateAdminForms();
+  /* Check statuses immediately on load, not just when switching to history tab */
+  setTimeout(refreshHistoryStatuses, 1500);
 });
 
 /* ══ PERSISTENCIA ═══════════════════════════════════════════════════ */
@@ -755,60 +757,66 @@ function requestNotificationPermission() {
   }
 }
 
-/* Poll Supabase for status updates.
-   Consulta TODOS los presupuestos con sbId que no hayan sido notificados aún.
-   Usa el flag `notified` para no repetir la notificación entre sesiones. */
+/* Consulta Supabase y actualiza estados.
+   Lógica simple:
+   - Consulta TODOS los sbId (no solo los pendientes)
+   - Compara con lo guardado en localStorage
+   - Si cambió Y el nuevo estado es accepted/rejected → notifica
+   - Notifica aunque haya sido notificado antes en sesiones anteriores
+     (el usuario puede haber borrado localStorage) */
 function refreshHistoryStatuses() {
-  if (!SB_ENABLED()) return;
-
-  /* Step 1: Show pending notifications for already-accepted/rejected
-     entries that were never notified (e.g. app was closed when it happened) */
-  STATE.history.forEach(function(h) {
-    if (h.sbId && !h.notified &&
-        (h.status === 'accepted' || h.status === 'rejected')) {
-      notifyStatusChange(h, h.status);
-      h.notified = true;
-    }
-  });
-
-  /* Step 2: Query Supabase for any entries not yet in final state */
-  var toQuery = STATE.history.filter(function(h) {
-    return h.sbId && h.status !== 'accepted' && h.status !== 'rejected';
-  });
-  if (toQuery.length === 0) {
-    /* Still save in case Step 1 set notified flags */
-    save(KEYS.history, STATE.history);
+  if (!SB_ENABLED()) {
+    console.log('[PresuPro] SB_ENABLED=false, skip refresh');
     return;
   }
 
-  var ids = toQuery.map(function(h){ return h.sbId; }).join(',');
+  var withSbId = STATE.history.filter(function(h) { return !!h.sbId; });
+  if (withSbId.length === 0) {
+    console.log('[PresuPro] No hay presupuestos con sbId');
+    return;
+  }
+
+  var ids = withSbId.map(function(h){ return h.sbId; }).join(',');
+  console.log('[PresuPro] Consultando Supabase para ids:', ids);
+
   sbFetch('GET', 'budgets_shared?id=in.(' + ids + ')&select=id,status,view_count,last_viewed_at')
     .then(function(rows) {
+      console.log('[PresuPro] Supabase devolvió:', rows);
       if (!rows || !rows.length) return;
+
       var changed = false;
       rows.forEach(function(row) {
         var idx = STATE.history.findIndex(function(h){ return h.sbId === row.id; });
         if (idx === -1) return;
-        var newStatus  = typeof row.status === 'string' ? row.status : 'sent';
-        var prevStatus = STATE.history[idx].status || '';
-        var statusChanged = prevStatus !== newStatus;
 
-        STATE.history[idx].status     = newStatus;
+        var newStatus  = typeof row.status === 'string' ? row.status : 'sent';
+        var prevStatus = String(STATE.history[idx].status || '');
+
+        console.log('[PresuPro] id=' + row.id + ' prevStatus=' + prevStatus + ' newStatus=' + newStatus);
+
+        /* Always update viewCount/lastViewed */
         STATE.history[idx].viewCount  = row.view_count;
         STATE.history[idx].lastViewed = row.last_viewed_at;
         changed = true;
 
-        /* Notify on transition to accepted/rejected */
-        if (statusChanged &&
-            (newStatus === 'accepted' || newStatus === 'rejected') &&
-            !STATE.history[idx].notified) {
-          notifyStatusChange(STATE.history[idx], newStatus);
-          STATE.history[idx].notified = true;
+        if (prevStatus !== newStatus) {
+          STATE.history[idx].status = newStatus;
+          /* Notify on any transition to accepted or rejected */
+          if (newStatus === 'accepted' || newStatus === 'rejected') {
+            console.log('[PresuPro] NOTIFICANDO:', newStatus);
+            notifyStatusChange(STATE.history[idx], newStatus);
+          }
+        } else if (newStatus === 'accepted' || newStatus === 'rejected') {
+          /* Status didn't change this call but make sure it's shown */
+          STATE.history[idx].status = newStatus;
         }
       });
+
       if (changed) { save(KEYS.history, STATE.history); renderHistory(); }
     })
-    .catch(function(e){ console.warn('refreshHistoryStatuses error:', e); });
+    .catch(function(e){
+      console.error('[PresuPro] refreshHistoryStatuses error:', e);
+    });
 }
 
 function saveBudget() {
