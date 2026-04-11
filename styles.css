@@ -789,3 +789,46 @@ select { cursor: pointer; }
   cursor: default;
 }
 .toast-persistent span { flex: 1; line-height: 1.4; }
+
+/* ── APP LOGIN SCREEN ─────────────────────────────────────────────── */
+.app-login-overlay {
+  position: fixed; inset: 0; z-index: 9000;
+  background: var(--bg-app);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  animation: fadeIn .2s ease;
+}
+.app-login-overlay.hidden { display: none; }
+
+.app-login-box {
+  width: 100%; max-width: 380px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 20px;
+}
+.app-login-logo { display: flex; align-items: center; justify-content: center; }
+.app-login-icon {
+  width: 56px; height: 56px; border-radius: 14px;
+  background: var(--text-main);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--bg-app); font-size: 1.4rem;
+}
+.app-login-brand { text-align: center; }
+.app-login-brand h1 {
+  font-family: var(--font-display);
+  font-size: 1.6rem; font-weight: 400;
+  color: var(--text-main); margin-bottom: 4px;
+}
+.app-login-brand p { font-size: .83rem; color: var(--text-muted); }
+
+.app-login-form {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.app-login-error {
+  font-size: .82rem; color: #b93333;
+  text-align: center; margin: 0;
+}

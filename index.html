@@ -16,6 +16,39 @@
 
   <link rel="stylesheet" href="styles.css" />
 </head>
+
+<!-- ══════════════════════════════════════════ APP LOGIN SCREEN ══ -->
+<div id="app-login-screen" class="app-login-overlay">
+  <div class="app-login-box">
+    <div class="app-login-logo">
+      <img id="login-biz-logo" src="" alt="" style="display:none;max-height:52px;object-fit:contain;" />
+      <div id="login-biz-icon" class="app-login-icon"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+    </div>
+    <div class="app-login-brand">
+      <h1 id="login-biz-name">PresuPro Studio</h1>
+      <p id="login-biz-slogan">Presupuestos profesionales en minutos</p>
+    </div>
+    <div class="app-login-form">
+      <div class="field">
+        <label>Contraseña</label>
+        <div class="input-pw-wrap">
+          <input type="password" id="app-pw-input" placeholder="••••••••"
+                 onkeydown="if(event.key==='Enter')checkAppLogin()" autocomplete="current-password" />
+          <button class="btn-pw-toggle" onclick="togglePwVisibility('app-pw-input',this)">
+            <i class="fa-solid fa-eye"></i>
+          </button>
+        </div>
+      </div>
+      <button class="btn btn-primary w-full" onclick="checkAppLogin()">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresar
+      </button>
+      <p id="app-login-error" class="app-login-error" style="display:none">
+        Contraseña incorrecta
+      </p>
+    </div>
+  </div>
+</div>
+
 <body>
 
 <!-- ═══════════════════════════════════════════════════════ TOAST ══ -->
@@ -44,6 +77,9 @@
     </button>
     <button class="nav-btn admin-btn" onclick="openAdminModal()">
       <i class="fa-solid fa-sliders"></i> Admin
+    </button>
+    <button class="nav-btn" onclick="appLogout()" title="Cerrar sesión" style="margin-left:2px">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i>
     </button>
   </nav>
 </header>
@@ -167,6 +203,9 @@
           <button class="btn btn-secondary" onclick="saveBudget()">
             <i class="fa-solid fa-floppy-disk"></i> Guardar
           </button>
+          <button class="btn btn-ghost" onclick="shareBudget()" title="Generar link para el cliente">
+            <i class="fa-solid fa-link"></i> Compartir
+          </button>
           <button class="btn btn-whatsapp" onclick="copyWAMessage()" title="Copiar mensaje de WhatsApp al portapapeles">
             <i class="fa-brands fa-whatsapp"></i> Copiar mensaje
           </button>
@@ -282,8 +321,8 @@
           <button class="admin-tab" data-tab="whatsapp" onclick="switchAdminTab('whatsapp',this)">
             <i class="fa-brands fa-whatsapp"></i> WhatsApp
           </button>
-          <button class="admin-tab" data-tab="whatsapp" onclick="switchAdminTab('whatsapp',this)">
-            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                    <button class="admin-tab" data-tab="integrations" onclick="switchAdminTab('integrations',this)">
+            <i class="fa-solid fa-plug"></i> Integraciones
           </button>
                     <button class="admin-tab" data-tab="security" onclick="switchAdminTab('security',this)">
             <i class="fa-solid fa-shield-halved"></i> Seguridad
@@ -586,67 +625,6 @@
           </div>
 
 
-          <!-- TAB: WHATSAPP -->
-          <div id="tab-whatsapp" class="admin-tab-content">
-            <h3 class="tab-title">Mensaje de WhatsApp</h3>
-            <p class="tab-desc">
-              Elegí un modelo y personalizalo. Se usará cada vez que exportes un PDF — el mensaje se copia automáticamente al portapapeles.<br>
-              Variables disponibles: <code>{cliente}</code> <code>{numero}</code> <code>{total}</code> <code>{negocio}</code> <code>{fecha}</code>
-            </p>
-
-            <div class="settings-section">
-              <h4>Modelos predefinidos</h4>
-              <div class="wa-tpl-list">
-
-                <div class="wa-tpl-card" data-tpl="0" onclick="selectWATemplate(0,this)">
-                  <div class="wa-tpl-header">
-                    <span class="wa-tpl-num">01</span>
-                    <span class="wa-tpl-title">Formal</span>
-                    <span class="wa-tpl-check"><i class="fa-solid fa-circle-check"></i></span>
-                  </div>
-                  <div class="wa-tpl-body">Estimado/a {cliente}, le hacemos llegar el presupuesto N° {numero} de {negocio} por un total de {total}, con validez hasta el {fecha}. Quedamos a su disposición ante cualquier consulta.</div>
-                </div>
-
-                <div class="wa-tpl-card" data-tpl="1" onclick="selectWATemplate(1,this)">
-                  <div class="wa-tpl-header">
-                    <span class="wa-tpl-num">02</span>
-                    <span class="wa-tpl-title">Cercano</span>
-                    <span class="wa-tpl-check"><i class="fa-solid fa-circle-check"></i></span>
-                  </div>
-                  <div class="wa-tpl-body">Hola {cliente}! 👋 Te mando el presupuesto que armé para vos — número {numero}, total {total}. Tiene validez hasta el {fecha}. Cualquier duda me avisás. Saludos, {negocio} 😊</div>
-                </div>
-
-                <div class="wa-tpl-card" data-tpl="2" onclick="selectWATemplate(2,this)">
-                  <div class="wa-tpl-header">
-                    <span class="wa-tpl-num">03</span>
-                    <span class="wa-tpl-title">Breve</span>
-                    <span class="wa-tpl-check"><i class="fa-solid fa-circle-check"></i></span>
-                  </div>
-                  <div class="wa-tpl-body">📋 Presupuesto {numero}
-Cliente: {cliente}
-Total: {total} · Válido hasta: {fecha}
-{negocio}</div>
-                </div>
-
-              </div>
-            </div>
-
-            <div class="settings-section">
-              <h4>Tu mensaje (editable)</h4>
-              <div class="field">
-                <textarea id="cfg-wa-message" rows="5" placeholder="Seleccioná un modelo arriba o escribí tu propio mensaje..." oninput="updateWAPreview()"></textarea>
-              </div>
-              <div class="wa-preview-wrap">
-                <div class="wa-preview-label"><i class="fa-brands fa-whatsapp"></i> Vista previa del mensaje</div>
-                <div id="cfg-wa-preview" class="wa-bubble">—</div>
-              </div>
-            </div>
-
-            <button class="btn btn-primary" onclick="saveWAConfig()">
-              <i class="fa-solid fa-check"></i> Guardar mensaje
-            </button>
-          </div>
-
 
           <!-- TAB: WHATSAPP -->
           <div id="tab-whatsapp" class="admin-tab-content">
@@ -698,6 +676,40 @@ Válido hasta: {fecha} — {negocio}</div>
             </div>
             <button class="btn btn-primary" onclick="saveWAConfig()">
               <i class="fa-solid fa-check"></i> Guardar mensaje
+            </button>
+          </div>
+
+
+          <!-- TAB: INTEGRATIONS -->
+          <div id="tab-integrations" class="admin-tab-content">
+            <h3 class="tab-title">Integraciones</h3>
+
+            <div class="settings-section">
+              <h4>Supabase — Tracking de presupuestos</h4>
+              <p class="tab-desc">
+                Conectá Supabase para activar links compartibles, tracking de visualizaciones y estados (enviado, visto, aceptado, rechazado).<br>
+                <strong>Gratis hasta 50.000 registros.</strong> Creá tu proyecto en <a href="https://supabase.com" target="_blank">supabase.com</a> y ejecutá el archivo <code>supabase-setup.sql</code> incluido.
+              </p>
+              <div class="form-grid-2">
+                <div class="field span-2">
+                  <label>Project URL</label>
+                  <input type="url" id="cfg-sb-url" placeholder="https://xxxxxxxxxxxx.supabase.co" />
+                </div>
+                <div class="field span-2">
+                  <label>Anon / Public Key</label>
+                  <input type="text" id="cfg-sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+                </div>
+              </div>
+              <div class="sb-status-row">
+                <button class="btn btn-ghost" onclick="testSupabase()">
+                  <i class="fa-solid fa-plug"></i> Probar conexión
+                </button>
+                <span id="sb-test-result" class="sb-test-result"></span>
+              </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="saveSupabaseConfig()">
+              <i class="fa-solid fa-check"></i> Guardar configuración
             </button>
           </div>
 

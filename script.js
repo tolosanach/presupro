@@ -105,6 +105,63 @@ var DEFAULTS = {
 
 var STATE = { businessConfig:{}, brandConfig:{}, catalog:[], budgetConfig:{}, history:[] };
 
+
+/* ══ SESIÓN DE APP ═══════════════════════════════════════════════════
+   La contraseña protege TODO — no solo el panel admin.
+   Se guarda en sessionStorage (se cierra al cerrar la pestaña).
+   ════════════════════════════════════════════════════════════════ */
+var APP_SESSION_KEY = 'pp_session_ok';
+
+function isLoggedIn() {
+  return sessionStorage.getItem(APP_SESSION_KEY) === '1';
+}
+
+function checkAppLogin() {
+  var pw     = document.getElementById('app-pw-input') ?
+               document.getElementById('app-pw-input').value : '';
+  var stored = localStorage.getItem(KEYS.password) || 'admin123';
+  if (pw === stored) {
+    sessionStorage.setItem(APP_SESSION_KEY, '1');
+    document.getElementById('app-login-screen').classList.add('hidden');
+    document.getElementById('app-pw-input').value = '';
+    /* Init app now that we're logged in */
+    initApp();
+  } else {
+    var errEl = document.getElementById('app-login-error');
+    if (errEl) { errEl.style.display = 'block'; }
+    var inp = document.getElementById('app-pw-input');
+    if (inp) {
+      inp.style.borderColor = '#b93333';
+      inp.style.boxShadow   = '0 0 0 2px rgba(185,51,51,.15)';
+      setTimeout(function(){ inp.style.borderColor=''; inp.style.boxShadow=''; }, 1500);
+    }
+  }
+}
+
+function appLogout() {
+  sessionStorage.removeItem(APP_SESSION_KEY);
+  /* Show login screen */
+  var ls = document.getElementById('app-login-screen');
+  if (ls) { ls.classList.remove('hidden'); }
+  var inp = document.getElementById('app-pw-input');
+  if (inp) { inp.value = ''; setTimeout(function(){ inp.focus(); }, 100); }
+}
+
+/* Populate login screen with business branding */
+function populateLoginScreen() {
+  var b = STATE.businessConfig;
+  var nameEl   = document.getElementById('login-biz-name');
+  var slogEl   = document.getElementById('login-biz-slogan');
+  var logoEl   = document.getElementById('login-biz-logo');
+  var iconEl   = document.getElementById('login-biz-icon');
+  if (nameEl)  nameEl.textContent  = b.bizName  || 'PresuPro Studio';
+  if (slogEl)  slogEl.textContent  = b.slogan   || 'Presupuestos profesionales en minutos';
+  if (b.logo && logoEl) {
+    logoEl.src = b.logo; logoEl.style.display = 'block';
+    if (iconEl) iconEl.style.display = 'none';
+  }
+}
+
 /* ══ ARRANQUE ═══════════════════════════════════════════════════════ */
 /* Auto-refresh interval when on history tab */
 var _refreshInterval = null;
@@ -120,11 +177,31 @@ function startAutoRefresh() {
 
 document.addEventListener('DOMContentLoaded', function() {
   loadAll();
-  /* Load Supabase config saved in localStorage */
+  /* Load Supabase config from localStorage */
   var savedUrl = localStorage.getItem('pp_sb_url');
   var savedKey = localStorage.getItem('pp_sb_key');
   if (savedUrl) SB.url = savedUrl;
   if (savedKey) SB.key = savedKey;
+
+  /* Populate login screen branding before showing anything */
+  populateLoginScreen();
+
+  if (!isLoggedIn()) {
+    /* Show login — don't init the app yet */
+    var ls = document.getElementById('app-login-screen');
+    if (ls) { ls.classList.remove('hidden'); }
+    var inp = document.getElementById('app-pw-input');
+    if (inp) setTimeout(function(){ inp.focus(); }, 150);
+    return;
+  }
+
+  /* Already logged in — hide login screen and init app */
+  var ls = document.getElementById('app-login-screen');
+  if (ls) ls.classList.add('hidden');
+  initApp();
+});
+
+function initApp() {
   applyBrand();
   initBudgetMeta();
   startAutoRefresh();
@@ -132,9 +209,8 @@ document.addEventListener('DOMContentLoaded', function() {
   updatePreview();
   renderHistory();
   populateAdminForms();
-  /* Check statuses immediately on load, not just when switching to history tab */
   setTimeout(refreshHistoryStatuses, 1500);
-});
+}
 
 /* ══ PERSISTENCIA ═══════════════════════════════════════════════════ */
 function loadAll() {
@@ -1080,7 +1156,9 @@ function changePassword() {
   if(cur!==stored){toast('Contraseña actual incorrecta','error');return;}
   if(np.length<6){toast('Mínimo 6 caracteres','error');return;}
   if(np!==conf){toast('Las contraseñas no coinciden','error');return;}
-  localStorage.setItem(KEYS.password,np); setVal('cfg-pw-current',''); setVal('cfg-pw-new',''); setVal('cfg-pw-confirm','');
+  localStorage.setItem(KEYS.password,np);
+  sessionStorage.setItem(APP_SESSION_KEY,'1'); /* keep session valid with new pw */
+  setVal('cfg-pw-current',''); setVal('cfg-pw-new',''); setVal('cfg-pw-confirm','');
   toast('Contraseña actualizada \u2713','success');
 }
 
