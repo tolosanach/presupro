@@ -38,13 +38,17 @@ var KEYS = {
    3. Ejecutá supabase_setup.sql en el SQL Editor
    4. Copiá la Project URL y la anon public key de Settings → API
    ════════════════════════════════════════════════════════════════ */
-/* SB se carga desde localStorage al arrancar — se configura desde Admin → Integraciones */
+/* ══ SUPABASE — configuración del producto ══════════════════════════
+   Como dueño del producto, reemplazá estos valores una sola vez.
+   Tus clientes nunca necesitan tocar esto.
+   ════════════════════════════════════════════════════════════════ */
+/* URL y anon key van acá — la anon key es pública por diseño en Supabase,
+   es seguro tenerla en el código. Solo permite lo que las políticas RLS permiten. */
 var SB = {
-  url: localStorage.getItem('pp_sb_url') || '',
-  key: localStorage.getItem('pp_sb_key') || localStorage.getItem('pp_sb_anonkey') || '',
+  url: 'https://pdkpsbcivgndqhwitrrh.supabase.co',
+  key: localStorage.getItem('pp_sb_key') || 'PEGAR_ANON_KEY_AQUI',
 };
-/* SB_ENABLED es una función para que siempre refleje el estado actual */
-function SB_ENABLED() { return SB.url.length > 10 && SB.key.length > 20; }
+function SB_ENABLED() { return SB.url.length > 10 && SB.key.length > 20 && SB.key !== 'PEGAR_ANON_KEY_AQUI'; }
 
 /* ── URL BASE DEL VIEWER ─────────────────────────────────────────────
    Una vez que subas los archivos a GitHub Pages o Netlify,
@@ -177,11 +181,9 @@ function startAutoRefresh() {
 
 document.addEventListener('DOMContentLoaded', function() {
   loadAll();
-  /* Load Supabase config from localStorage */
-  var savedUrl = localStorage.getItem('pp_sb_url');
+  /* Load Supabase key from localStorage if available */
   var savedKey = localStorage.getItem('pp_sb_key');
-  if (savedUrl) SB.url = savedUrl;
-  if (savedKey) SB.key = savedKey;
+  if (savedKey && savedKey.length > 20) SB.key = savedKey;
 
   /* Populate login screen branding before showing anything */
   populateLoginScreen();
