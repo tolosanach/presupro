@@ -143,6 +143,19 @@ function loadAll() {
   STATE.catalog        = loadOrDefault(KEYS.catalog,        DEFAULTS.catalog);
   STATE.budgetConfig   = loadOrDefault(KEYS.budgetConfig,   DEFAULTS.budgetConfig);
   STATE.history        = loadOrDefault(KEYS.history,        []);
+  /* Migrate: fix any corrupted status fields saved as objects */
+  var migrated = false;
+  STATE.history.forEach(function(h) {
+    if (h.status && typeof h.status === 'object') {
+      h.status = h.status.status || h.status.value || 'sent';
+      migrated = true;
+    }
+    if (h.status && ['sent','viewed','accepted','rejected'].indexOf(h.status) === -1) {
+      h.status = 'sent';
+      migrated = true;
+    }
+  });
+  if (migrated) save(KEYS.history, STATE.history);
 }
 function loadOrDefault(key, def) {
   var isArr = Array.isArray(def);
@@ -757,67 +770,60 @@ function requestNotificationPermission() {
   }
 }
 
-/* Consulta Supabase y actualiza estados.
-   Lógica simple:
-   - Consulta TODOS los sbId (no solo los pendientes)
-   - Compara con lo guardado en localStorage
-   - Si cambió Y el nuevo estado es accepted/rejected → notifica
-   - Notifica aunque haya sido notificado antes en sesiones anteriores
-     (el usuario puede haber borrado localStorage) */
+/* ── REFRESH DE ESTADOS ──────────────────────────────────────────────
+   Estrategia: siempre consultar Supabase y actualizar.
+   La notificación se dispara cuando:
+     1. El estado en Supabase es accepted/rejected
+     2. El status local era distinto (sent/viewed) → cambio real
+   El badge se actualiza siempre sin importar si cambió o no.
+   ─────────────────────────────────────────────────────────────── */
 function refreshHistoryStatuses() {
-  if (!SB_ENABLED()) {
-    console.log('[PresuPro] SB_ENABLED=false, skip refresh');
-    return;
-  }
+  if (!SB_ENABLED()) return;
 
   var withSbId = STATE.history.filter(function(h) { return !!h.sbId; });
-  if (withSbId.length === 0) {
-    console.log('[PresuPro] No hay presupuestos con sbId');
-    return;
-  }
+  if (!withSbId.length) return;
 
   var ids = withSbId.map(function(h){ return h.sbId; }).join(',');
-  console.log('[PresuPro] Consultando Supabase para ids:', ids);
 
   sbFetch('GET', 'budgets_shared?id=in.(' + ids + ')&select=id,status,view_count,last_viewed_at')
     .then(function(rows) {
-      console.log('[PresuPro] Supabase devolvió:', rows);
       if (!rows || !rows.length) return;
-
       var changed = false;
+
       rows.forEach(function(row) {
         var idx = STATE.history.findIndex(function(h){ return h.sbId === row.id; });
         if (idx === -1) return;
 
-        var newStatus  = typeof row.status === 'string' ? row.status : 'sent';
-        var prevStatus = String(STATE.history[idx].status || '');
+        var entry     = STATE.history[idx];
+        var newStatus = typeof row.status === 'string' ? row.status : 'sent';
+        /* Normalize prevStatus — handle object corruption */
+        var prevStatus = entry.status;
+        if (prevStatus && typeof prevStatus === 'object') prevStatus = prevStatus.status || 'sent';
+        prevStatus = String(prevStatus || 'sent');
 
-        console.log('[PresuPro] id=' + row.id + ' prevStatus=' + prevStatus + ' newStatus=' + newStatus);
-
-        /* Always update viewCount/lastViewed */
-        STATE.history[idx].viewCount  = row.view_count;
-        STATE.history[idx].lastViewed = row.last_viewed_at;
+        /* Always update counts */
+        entry.viewCount  = row.view_count  || entry.viewCount  || 0;
+        entry.lastViewed = row.last_viewed_at || entry.lastViewed || null;
         changed = true;
 
-        if (prevStatus !== newStatus) {
-          STATE.history[idx].status = newStatus;
-          /* Notify on any transition to accepted or rejected */
-          if (newStatus === 'accepted' || newStatus === 'rejected') {
-            console.log('[PresuPro] NOTIFICANDO:', newStatus);
-            notifyStatusChange(STATE.history[idx], newStatus);
-          }
-        } else if (newStatus === 'accepted' || newStatus === 'rejected') {
-          /* Status didn't change this call but make sure it's shown */
-          STATE.history[idx].status = newStatus;
+        /* Update status */
+        entry.status = newStatus;
+
+        /* Notify if:
+           - new status is a final state (accepted/rejected)
+           - AND previous local status was not already that final state
+             (i.e. this is new information) */
+        var wasAlreadyFinal = (prevStatus === 'accepted' || prevStatus === 'rejected');
+        if (!wasAlreadyFinal && (newStatus === 'accepted' || newStatus === 'rejected')) {
+          notifyStatusChange(entry, newStatus);
         }
       });
 
       if (changed) { save(KEYS.history, STATE.history); renderHistory(); }
     })
-    .catch(function(e){
-      console.error('[PresuPro] refreshHistoryStatuses error:', e);
-    });
+    .catch(function(e){ console.warn('[PresuPro] refresh error:', e.message); });
 }
+
 
 function saveBudget() {
   var data=collectBudgetData();
