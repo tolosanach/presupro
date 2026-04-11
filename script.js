@@ -39,8 +39,8 @@ var KEYS = {
    4. Copiá la Project URL y la anon public key de Settings → API
    ════════════════════════════════════════════════════════════════ */
 var SB = {
-  url: 'TU_SUPABASE_URL',         // ← ej: https://xxxx.supabase.co
-  key: 'TU_SUPABASE_ANON_KEY',    // ← anon public key
+  url: 'https://pdkpsbcivgndqhwitrrh.supabase.co',         // ← ej: https://xxxx.supabase.co
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBka3BzYmNpdmduZHFod2l0cnJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODQzNjgsImV4cCI6MjA5MTQ2MDM2OH0.2v3mZfrceP0pyGOCkiZNcq3AT5Pzte1qkJLP_RTNDBE',    // ← anon public key
 };
 var SB_ENABLED = (SB.url !== 'TU_SUPABASE_URL');
 
