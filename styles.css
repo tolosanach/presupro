@@ -775,3 +775,17 @@ select { cursor: pointer; }
   margin: 4px 0 6px;
   display: flex; align-items: center; gap: 5px;
 }
+
+/* ── TOAST PERSISTENTE (notificación de aceptado/rechazado) ─────── */
+.toast-persistent {
+  min-width: 280px; max-width: 420px;
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 10px;
+  border-radius: 50px;
+  font-size: .875rem; font-weight: 600;
+  box-shadow: var(--shadow-xl);
+  animation: toastIn .3s ease forwards;
+  pointer-events: auto;
+  cursor: default;
+}
+.toast-persistent span { flex: 1; line-height: 1.4; }
