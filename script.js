@@ -62,7 +62,7 @@ var VIEWER_BASE_URL = '';   // ← pegar tu URL aquí (sin barra al final)
 
 function sbFetch(method, path, body) {
   if (!SB_ENABLED()) {
-    return Promise.reject(new Error('Supabase no configurado. Andá a Admin → Integraciones y pegá tus credenciales.'));
+    return Promise.reject(new Error('Supabase no configurado — pegá tu anon key en script.js línea 49'));
   }
   var key = SB.key;
   return fetch(SB.url + '/rest/v1/' + path, {
@@ -702,7 +702,7 @@ var STATUS_BG     = { sent:'#e8f0fe', viewed:'#fef9c3', accepted:'#dcfce7', reje
 
 function generateLink(idx) {
   if (!SB_ENABLED()) {
-    toast('Configurá Supabase en Admin → Integraciones primero', 'error');
+    toast('Configurá la anon key de Supabase en script.js primero', 'error');
     return;
   }
   var h = STATE.history[idx]; if (!h) return;
@@ -1058,7 +1058,7 @@ function updateWAPreview() {
 }
 function saveWAConfig() {
   var msg=elVal('cfg-wa-message').trim(); if(!msg){toast('Escribí un mensaje antes de guardar','error');return;}
-  save(KEYS.waMessage,msg); toast('Mensaje guardado \u2713','success');
+  save(KEYS.waMessage,msg); markClean(); markClean(); markClean(); markClean(); markClean(); toast('Mensaje guardado \u2713','success');
 }
 function buildWAMessage(tpl,vars) {
   if(!tpl) return '';
@@ -1090,9 +1090,15 @@ function populateWAForm() {
 
 /* ══ ADMIN ═══════════════════════════════════════════════════════════ */
 function openAdminModal() {
-  el('admin-overlay').classList.remove('hidden'); el('admin-login').classList.remove('hidden'); el('admin-panel').classList.add('hidden');
-  el('admin-overlay').querySelector('.modal-box').classList.remove('expanded'); setVal('admin-pw-input','');
-  setTimeout(function(){var e=el('admin-pw-input');if(e)e.focus();},100);
+  /* Already authenticated via app login — go straight to panel */
+  el('admin-overlay').classList.remove('hidden');
+  el('admin-login').classList.add('hidden');
+  el('admin-panel').classList.remove('hidden');
+  el('admin-overlay').querySelector('.modal-box').classList.add('expanded');
+  populateAdminForms();
+  renderServicesAdmin();
+  markClean();
+  setTimeout(attachDirtyListeners, 100);
 }
 function closeAdminModal(){el('admin-overlay').classList.add('hidden');}
 function checkAdminPw() {
@@ -1107,6 +1113,37 @@ function checkAdminPw() {
     setTimeout(function(){inp.style.borderColor='';inp.style.boxShadow='';},1500);
   }
 }
+
+/* ══ AVISO DE CAMBIOS SIN GUARDAR ═══════════════════════════════════ */
+var _adminDirty = false; /* true cuando hay cambios sin guardar */
+
+function markDirty() { _adminDirty = true; }
+function markClean() { _adminDirty = false; }
+
+/* Attach dirty listeners to all admin inputs after panel opens */
+function attachDirtyListeners() {
+  var inputs = document.querySelectorAll('.admin-content input, .admin-content textarea, .admin-content select');
+  inputs.forEach(function(inp) {
+    inp.removeEventListener('input', markDirty);
+    inp.removeEventListener('change', markDirty);
+    inp.addEventListener('input', markDirty);
+    inp.addEventListener('change', markDirty);
+  });
+}
+
+/* Intercept tab switching to warn about unsaved changes */
+function switchAdminTabSafe(tab, btn) {
+  if (_adminDirty) {
+    confirmAction(
+      '¿Cambiar de pestaña?',
+      'Tenés cambios sin guardar en esta sección. Si cambiás de pestaña se van a perder.',
+      function() { markClean(); switchAdminTab(tab, btn); }
+    );
+  } else {
+    switchAdminTab(tab, btn);
+  }
+}
+
 function switchAdminTab(tab,btn) {
   qsa('.admin-tab-content').forEach(function(c){c.classList.remove('active');});
   qsa('.admin-tab').forEach(function(b){b.classList.remove('active');});
@@ -1136,14 +1173,14 @@ function saveBrandConfig() {
   var b=STATE.businessConfig,br=STATE.brandConfig;
   b.bizName=elVal('cfg-biz-name'); b.slogan=elVal('cfg-biz-slogan'); b.footerText=elVal('cfg-footer-text'); b.signature=elVal('cfg-signature'); b.thankYou=elVal('cfg-thank-you');
   br.colorPrimary=elVal('cfg-color-primary')||br.colorPrimary; br.colorSecondary=elVal('cfg-color-secondary')||br.colorSecondary; br.colorAccent=elVal('cfg-color-accent')||br.colorAccent; br.font=elVal('cfg-font')||'DM Sans';
-  save(KEYS.businessConfig,b); save(KEYS.brandConfig,br); applyBrand(); updatePreview(); toast('Identidad guardada \u2713','success');
+  save(KEYS.businessConfig,b); save(KEYS.brandConfig,br); applyBrand(); updatePreview(); markClean(); markClean(); markClean(); markClean(); markClean(); toast('Identidad guardada \u2713','success');
 }
 function saveBusinessConfig() {
   var b=STATE.businessConfig;
   b.phone=elVal('cfg-phone'); b.whatsapp=elVal('cfg-whatsapp'); b.email=elVal('cfg-email'); b.website=elVal('cfg-website');
   b.address=elVal('cfg-address'); b.cuit=elVal('cfg-cuit'); b.paymentAlias=elVal('cfg-payment-alias');
   b.paymentTerms=elVal('cfg-payment-terms'); b.deliveryTime=elVal('cfg-delivery-time'); b.legal=elVal('cfg-legal');
-  save(KEYS.businessConfig,b); updatePreview(); toast('Datos guardados \u2713','success');
+  save(KEYS.businessConfig,b); updatePreview(); markClean(); markClean(); markClean(); markClean(); markClean(); toast('Datos guardados \u2713','success');
 }
 function saveBudgetConfig() {
   var bc=STATE.budgetConfig;
@@ -1151,7 +1188,7 @@ function saveBudgetConfig() {
   bc.currency=elVal('cfg-currency')||'$'; bc.defaultTax=parseFloat(elVal('cfg-default-tax'))||0;
   var cm={'cfg-show-discount':'showDiscount','cfg-show-surcharge':'showSurcharge','cfg-show-signature':'showSignature','cfg-show-legal':'showLegal','cfg-show-contact-footer':'showContactFooter'};
   Object.keys(cm).forEach(function(id){var c=el(id);if(c)bc[cm[id]]=c.checked;});
-  save(KEYS.budgetConfig,bc); initBudgetMeta(); updatePreview(); toast('Configuración guardada \u2713','success');
+  save(KEYS.budgetConfig,bc); initBudgetMeta(); updatePreview(); markClean(); markClean(); markClean(); markClean(); markClean(); toast('Configuración guardada \u2713','success');
 }
 function changePassword() {
   var cur=elVal('cfg-pw-current'),np=elVal('cfg-pw-new'),conf=elVal('cfg-pw-confirm'),stored=localStorage.getItem(KEYS.password)||'admin123';
@@ -1527,7 +1564,7 @@ function shareBudget(idx) {
 
   /* Check Supabase is configured */
   if (SB.url.indexOf('TU-PROYECTO') !== -1) {
-    toast('Configurá Supabase primero en Admin → Integraciones', 'error'); return;
+    toast('Configurá la anon key de Supabase en script.js primero', 'error'); return;
   }
 
   toast('Generando link...', 'info');
