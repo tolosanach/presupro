@@ -38,11 +38,13 @@ var KEYS = {
    3. Ejecutá supabase_setup.sql en el SQL Editor
    4. Copiá la Project URL y la anon public key de Settings → API
    ════════════════════════════════════════════════════════════════ */
+/* SB se carga desde localStorage al arrancar — se configura desde Admin → Integraciones */
 var SB = {
-  url: 'https://pdkpsbcivgndqhwitrrh.supabase.co',         // ← ej: https://xxxx.supabase.co
-  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBka3BzYmNpdmduZHFod2l0cnJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODQzNjgsImV4cCI6MjA5MTQ2MDM2OH0.2v3mZfrceP0pyGOCkiZNcq3AT5Pzte1qkJLP_RTNDBE',    // ← anon public key
+  url: localStorage.getItem('pp_sb_url') || '',
+  key: localStorage.getItem('pp_sb_key') || localStorage.getItem('pp_sb_anonkey') || '',
 };
-var SB_ENABLED = (SB.url !== 'TU_SUPABASE_URL');
+/* SB_ENABLED es una función para que siempre refleje el estado actual */
+function SB_ENABLED() { return SB.url.length > 10 && SB.key.length > 20; }
 
 /* ── URL BASE DEL VIEWER ─────────────────────────────────────────────
    Una vez que subas los archivos a GitHub Pages o Netlify,
@@ -55,18 +57,24 @@ var SB_ENABLED = (SB.url !== 'TU_SUPABASE_URL');
 var VIEWER_BASE_URL = '';   // ← pegar tu URL aquí (sin barra al final)
 
 function sbFetch(method, path, body) {
-  if (!SB_ENABLED) return Promise.reject(new Error('Supabase no configurado'));
+  if (!SB_ENABLED()) {
+    return Promise.reject(new Error('Supabase no configurado. Andá a Admin → Integraciones y pegá tus credenciales.'));
+  }
+  var key = SB.key;
   return fetch(SB.url + '/rest/v1/' + path, {
     method: method,
     headers: {
-      'apikey':        SB.key,
-      'Authorization': 'Bearer ' + SB.key,
+      'apikey':        key,
+      'Authorization': 'Bearer ' + key,
       'Content-Type':  'application/json',
       'Prefer':        method === 'POST' ? 'return=representation' : '',
     },
     body: body ? JSON.stringify(body) : undefined,
   }).then(function(r) {
-    if (!r.ok) return r.text().then(function(t){ throw new Error(t); });
+    if (!r.ok) return r.text().then(function(t){
+      var msg = t; try { var j=JSON.parse(t); msg=j.message||j.hint||t; } catch(e){}
+      throw new Error('Supabase error ' + r.status + ': ' + msg);
+    });
     return r.json().catch(function(){ return {}; });
   });
 }
@@ -98,10 +106,28 @@ var DEFAULTS = {
 var STATE = { businessConfig:{}, brandConfig:{}, catalog:[], budgetConfig:{}, history:[] };
 
 /* ══ ARRANQUE ═══════════════════════════════════════════════════════ */
+/* Auto-refresh interval when on history tab */
+var _refreshInterval = null;
+function startAutoRefresh() {
+  if (_refreshInterval) return;
+  _refreshInterval = setInterval(function() {
+    var historyView = el('view-history');
+    if (historyView && historyView.classList.contains('active')) {
+      refreshHistoryStatuses();
+    }
+  }, 30000); /* every 30 seconds */
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   loadAll();
+  /* Load Supabase config saved in localStorage */
+  var savedUrl = localStorage.getItem('pp_sb_url');
+  var savedKey = localStorage.getItem('pp_sb_key');
+  if (savedUrl) SB.url = savedUrl;
+  if (savedKey) SB.key = savedKey;
   applyBrand();
   initBudgetMeta();
+  startAutoRefresh();
   addItem();
   updatePreview();
   renderHistory();
@@ -582,8 +608,8 @@ var STATUS_COLORS = { sent:'#1a5fb4', viewed:'#854d0e', accepted:'#166534', reje
 var STATUS_BG     = { sent:'#e8f0fe', viewed:'#fef9c3', accepted:'#dcfce7', rejected:'#fee2e2' };
 
 function generateLink(idx) {
-  if (!SB_ENABLED) {
-    toast('Configurá Supabase en script.js antes de usar esta función', 'error');
+  if (!SB_ENABLED()) {
+    toast('Configurá Supabase en Admin → Integraciones primero', 'error');
     return;
   }
   var h = STATE.history[idx]; if (!h) return;
@@ -612,8 +638,11 @@ function generateLink(idx) {
       if (!row || !row.id) throw new Error('No se recibió ID');
 
       /* Store the supabase id on the history entry */
-      STATE.history[idx].sbId   = row.id;
-      STATE.history[idx].status = 'sent';
+      STATE.history[idx].sbId     = row.id;
+      STATE.history[idx].status   = 'sent';
+      STATE.history[idx].notified = false;  /* reset so we get notified when accepted */
+      STATE.history[idx].viewCount = 0;
+      STATE.history[idx].lastViewed = null;
       save(KEYS.history, STATE.history);
 
       /* Build viewer URL */
@@ -651,15 +680,108 @@ function generateLink(idx) {
     });
 }
 
-/* Poll status updates for history entries that have an sbId and are in sent/viewed state */
+/* ── NOTIFICACIÓN DE CAMBIO DE ESTADO ───────────────────────────────
+   Cuando un presupuesto pasa a aceptado o rechazado, mostramos:
+   1. Un toast grande y persistente
+   2. Un banner en la history card
+   3. Intento de notificación por email via Supabase (si está configurado)
+   ─────────────────────────────────────────────────────────────────── */
+function notifyStatusChange(entry, newStatus) {
+  var client  = (entry.client  && entry.client.name)  || 'El cliente';
+  var number  = (entry.meta    && entry.meta.number)  || '';
+  var total   = (entry.totals  && entry.totals.total) || 0;
+  var currency= entry.currency || '$';
+
+  if (newStatus === 'accepted') {
+    /* Big persistent toast */
+    toastPersistent(
+      '🎉 ' + client + ' aceptó el presupuesto ' + number + ' · ' + currency + ' ' + fmtNum(total),
+      'success'
+    );
+    /* Browser notification if permitted */
+    sendBrowserNotification(
+      '✅ Presupuesto aceptado',
+      client + ' aceptó ' + number + ' por ' + currency + ' ' + fmtNum(total)
+    );
+  } else if (newStatus === 'rejected') {
+    toastPersistent(
+      '❌ ' + client + ' rechazó el presupuesto ' + number,
+      'error'
+    );
+    sendBrowserNotification(
+      '❌ Presupuesto rechazado',
+      client + ' rechazó ' + number
+    );
+  }
+}
+
+/* Toast que no desaparece hasta que el usuario lo cierra */
+function toastPersistent(msg, type) {
+  type = type || 'info';
+  var icons = { success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info' };
+  var t = document.createElement('div');
+  t.className = 'toast toast-persistent ' + type;
+  t.innerHTML =
+    '<i class="fa-solid ' + (icons[type]||icons.info) + '"></i>' +
+    '<span style="flex:1">' + msg + '</span>' +
+    '<button onclick="this.parentNode.remove()" style="background:none;border:none;color:inherit;cursor:pointer;padding:0 0 0 12px;font-size:1rem;opacity:.7">✕</button>';
+  var c = el('toast-container');
+  if (c) c.appendChild(t);
+  /* Auto-dismiss after 12 seconds */
+  setTimeout(function() { if (t.parentNode) { t.classList.add('out'); setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 400); } }, 12000);
+}
+
+/* Browser push notification (requiere permiso del usuario) */
+function sendBrowserNotification(title, body) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body: body, icon: '/presupro/favicon.ico' });
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(function(p) {
+      if (p === 'granted') new Notification(title, { body: body });
+    });
+  }
+}
+
+/* Pedir permiso de notificaciones al cargar (si hay presupuestos pendientes) */
+function requestNotificationPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    /* Solo pedirlo si hay presupuestos con sbId pendientes */
+    var hasPending = STATE.history.some(function(h) {
+      return h.sbId && h.status !== 'accepted' && h.status !== 'rejected';
+    });
+    if (hasPending) Notification.requestPermission();
+  }
+}
+
+/* Poll Supabase for status updates.
+   Consulta TODOS los presupuestos con sbId que no hayan sido notificados aún.
+   Usa el flag `notified` para no repetir la notificación entre sesiones. */
 function refreshHistoryStatuses() {
-  if (!SB_ENABLED) return;
-  var pending = STATE.history.filter(function(h) {
+  if (!SB_ENABLED()) return;
+
+  /* Step 1: Show pending notifications for already-accepted/rejected
+     entries that were never notified (e.g. app was closed when it happened) */
+  STATE.history.forEach(function(h) {
+    if (h.sbId && !h.notified &&
+        (h.status === 'accepted' || h.status === 'rejected')) {
+      notifyStatusChange(h, h.status);
+      h.notified = true;
+    }
+  });
+
+  /* Step 2: Query Supabase for any entries not yet in final state */
+  var toQuery = STATE.history.filter(function(h) {
     return h.sbId && h.status !== 'accepted' && h.status !== 'rejected';
   });
-  if (pending.length === 0) return;
+  if (toQuery.length === 0) {
+    /* Still save in case Step 1 set notified flags */
+    save(KEYS.history, STATE.history);
+    return;
+  }
 
-  var ids = pending.map(function(h){ return h.sbId; }).join(',');
+  var ids = toQuery.map(function(h){ return h.sbId; }).join(',');
   sbFetch('GET', 'budgets_shared?id=in.(' + ids + ')&select=id,status,view_count,last_viewed_at')
     .then(function(rows) {
       if (!rows || !rows.length) return;
@@ -667,17 +789,26 @@ function refreshHistoryStatuses() {
       rows.forEach(function(row) {
         var idx = STATE.history.findIndex(function(h){ return h.sbId === row.id; });
         if (idx === -1) return;
-        if (STATE.history[idx].status !== row.status ||
-            STATE.history[idx].viewCount !== row.view_count) {
-          STATE.history[idx].status    = row.status;
-          STATE.history[idx].viewCount = row.view_count;
-          STATE.history[idx].lastViewed= row.last_viewed_at;
-          changed = true;
+        var newStatus  = typeof row.status === 'string' ? row.status : 'sent';
+        var prevStatus = STATE.history[idx].status || '';
+        var statusChanged = prevStatus !== newStatus;
+
+        STATE.history[idx].status     = newStatus;
+        STATE.history[idx].viewCount  = row.view_count;
+        STATE.history[idx].lastViewed = row.last_viewed_at;
+        changed = true;
+
+        /* Notify on transition to accepted/rejected */
+        if (statusChanged &&
+            (newStatus === 'accepted' || newStatus === 'rejected') &&
+            !STATE.history[idx].notified) {
+          notifyStatusChange(STATE.history[idx], newStatus);
+          STATE.history[idx].notified = true;
         }
       });
       if (changed) { save(KEYS.history, STATE.history); renderHistory(); }
     })
-    .catch(function(){});
+    .catch(function(e){ console.warn('refreshHistoryStatuses error:', e); });
 }
 
 function saveBudget() {
@@ -745,7 +876,11 @@ function renderHistory() {
   }
   container.innerHTML=list.map(function(item){
     var h=item.h, idx=item.idx, c=h.client||{}, m=h.meta||{}, t=h.totals||{};
-    var status    = h.status || (h.sbId ? 'sent' : '');
+    /* Ensure status is always a plain string, never an object */
+    var rawStatus = h.status || (h.sbId ? 'sent' : '');
+    var status    = (rawStatus && typeof rawStatus === 'object') ? (rawStatus.status || rawStatus.value || 'sent') : String(rawStatus || '');
+    /* Only allow known values */
+    if (['sent','viewed','accepted','rejected'].indexOf(status) === -1) status = h.sbId ? 'sent' : '';
     var label     = STATUS_LABELS[status] || '';
     var badgeStyle= status ? 'background:'+STATUS_BG[status]+';color:'+STATUS_COLORS[status]+';' : '';
     var viewInfo  = '';
@@ -769,7 +904,7 @@ function renderHistory() {
         '<div class="hc-actions">'+
           '<button class="btn btn-ghost" onclick="loadBudgetFromHistory('+idx+')"><i class="fa-solid fa-file-import"></i> Cargar</button>'+
           '<button class="btn btn-ghost" onclick="exportHistoryPDF('+idx+')"><i class="fa-solid fa-file-pdf"></i> PDF</button>'+
-          (SB_ENABLED ? '<button class="btn btn-secondary" onclick="generateLink('+idx+')" title="Generar link para el cliente"><i class="fa-solid fa-link"></i></button>' : '')+
+          '<button class="btn btn-secondary" onclick="generateLink('+idx+')" title="Generar link para el cliente"><i class="fa-solid fa-link"></i></button>'+
           '<button class="btn btn-danger" onclick="deleteBudgetFromHistory('+idx+')"><i class="fa-solid fa-trash"></i></button>'+
         '</div>'+
       '</div>'
@@ -1012,7 +1147,7 @@ function switchView(name){
   qsa('.nav-btn').forEach(function(b){b.classList.remove('active');});
   var v=el('view-'+name);if(v)v.classList.add('active');
   var b=document.querySelector('[data-view="'+name+'"]');if(b)b.classList.add('active');
-  if(name==='history'){renderHistory();refreshHistoryStatuses();}
+  if(name==='history'){renderHistory();refreshHistoryStatuses();requestNotificationPermission();}
 }
 function togglePwVisibility(inputId,btn){var inp=el(inputId);if(!inp)return;var isText=inp.type==='text';inp.type=isText?'password':'text';btn.innerHTML=isText?'<i class="fa-solid fa-eye"></i>':'<i class="fa-solid fa-eye-slash"></i>';}
 
@@ -1226,18 +1361,19 @@ function saveSupabaseConfig() {
   var key = elVal('cfg-sb-key').trim();
   if (!url || !key) { toast('Completá URL y Key', 'error'); return; }
   if (!url.startsWith('https://')) { toast('La URL debe comenzar con https://', 'error'); return; }
-  SB.url     = url;
-  SB.anonKey = key;
+  SB.url = url;
+  SB.key = key;
   localStorage.setItem('pp_sb_url', url);
   localStorage.setItem('pp_sb_key', key);
+  SB_ENABLED(); // trigger update
   toast('Configuración de Supabase guardada ✓', 'success');
 }
 
 function loadSupabaseConfig() {
   var url = localStorage.getItem('pp_sb_url');
   var key = localStorage.getItem('pp_sb_key');
-  if (url) SB.url     = url;
-  if (key) SB.anonKey = key;
+  if (url) SB.url = url;
+  if (key) SB.key = key;
 }
 
 function populateIntegrationsForm() {
@@ -1252,12 +1388,12 @@ function testSupabase() {
   if (!url || !key) { toast('Completá URL y Key primero', 'error'); return; }
   var res = el('sb-test-result');
   if (res) { res.textContent = 'Probando...'; res.className = 'sb-test-result'; }
-  fetch(url + '/rest/v1/shared_budgets?limit=1', {
+  fetch(url + '/rest/v1/budgets_shared?limit=1', {
     headers: { 'apikey': key, 'Authorization': 'Bearer ' + key }
   }).then(function(r) {
     if (r.ok || r.status === 200 || r.status === 206) {
       if (res) { res.textContent = '✓ Conexión exitosa'; res.className = 'sb-test-result ok'; }
-      SB.url = url; SB.anonKey = key;
+      SB.url = url; SB.key = key;
     } else if (r.status === 404) {
       if (res) { res.textContent = '⚠ Conectado, pero la tabla no existe. Ejecutá supabase-setup.sql'; res.className = 'sb-test-result warn'; }
     } else {
