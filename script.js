@@ -696,7 +696,7 @@ function buildPDFStyles(brand) {
 /* ══ TRACKING / LINK COMPARTIBLE ════════════════════════════════════ */
 
 /* Status labels and styles */
-var STATUS_LABELS = { sent:'Enviado', viewed:'Visto', accepted:'Aceptado', rejected:'Rechazado' };
+var STATUS_LABELS = { sent:'Enviado', viewed:'Visto', accepted:'Aceptado', rejected:'Rechazado' }; // v2
 var STATUS_COLORS = { sent:'#1a5fb4', viewed:'#854d0e', accepted:'#166534', rejected:'#991b1b' };
 var STATUS_BG     = { sent:'#e8f0fe', viewed:'#fef9c3', accepted:'#dcfce7', rejected:'#fee2e2' };
 
