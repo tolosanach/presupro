@@ -1,9 +1,9 @@
 'use strict';
-
+ 
 /* ══════════════════════════════════════════════════════════════════
    PRESUPRO STUDIO — script.js
    ════════════════════════════════════════════════════════════════ */
-
+ 
 /* ── TENANT ISOLATION ───────────────────────────────────────────────
    Cuando la app corre en GitHub Pages (dominio compartido), cada
    instalación tiene un ID único para no pisar datos de otros.
@@ -18,9 +18,9 @@ var _tenantId = (function() {
   }
   return id;
 })();
-
+ 
 function _k(name) { return _tenantId + '_' + name; }
-
+ 
 var KEYS = {
   businessConfig: _k('business'),
   brandConfig:    _k('brand'),
@@ -31,7 +31,7 @@ var KEYS = {
   password:       _k('adminpw'),
   waMessage:      _k('wamessage'),
 };
-
+ 
 /* ══ SUPABASE CONFIG ═════════════════════════════════════════════════
    1. Creá cuenta en supabase.com (gratis)
    2. Creá un proyecto
@@ -49,7 +49,7 @@ var SB = {
   key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBka3BzYmNpdmduZHFod2l0cnJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODQzNjgsImV4cCI6MjA5MTQ2MDM2OH0.2v3mZfrceP0pyGOCkiZNcq3AT5Pzte1qkJLP_RTNDBE',
 };
 function SB_ENABLED() { return true; }
-
+ 
 /* ── URL BASE DEL VIEWER ─────────────────────────────────────────────
    Una vez que subas los archivos a GitHub Pages o Netlify,
    reemplazá esta variable con tu URL pública.
@@ -59,7 +59,7 @@ function SB_ENABLED() { return true; }
      Dominio:      'https://presupros.midominio.com'
    ─────────────────────────────────────────────────────────────────── */
 var VIEWER_BASE_URL = '';   // ← pegar tu URL aquí (sin barra al final)
-
+ 
 function sbFetch(method, path, body) {
   if (!SB_ENABLED()) {
     return Promise.reject(new Error('Supabase no configurado — pegá tu anon key en script.js línea 49'));
@@ -82,44 +82,92 @@ function sbFetch(method, path, body) {
     return r.json().catch(function(){ return {}; });
   });
 }
-
+ 
 var DEFAULTS = {
   businessConfig: {
-    bizName:'PresuPro Studio', slogan:'Presupuestos profesionales en minutos',
-    phone:'+54 9 2302 000000', whatsapp:'5492302000000',
-    email:'hola@presuprostudio.com', website:'https://www.presuprostudio.com',
-    address:'Av. Siempre Viva 742, General Pico, La Pampa', cuit:'20-12345678-9',
-    paymentAlias:'presupro.mp', paymentTerms:'50% al inicio · 50% a la entrega',
-    deliveryTime:'5 a 7 días hábiles',
+    bizName:'', slogan:'',
+    phone:'', whatsapp:'',
+    email:'', website:'',
+    address:'', cuit:'',
+    paymentAlias:'', paymentTerms:'',
+    deliveryTime:'',
     legal:'Los precios cotizados tienen validez por el plazo indicado. Pasado dicho plazo se deberá solicitar nueva cotización. Precios sin IVA salvo indicación expresa.',
-    logo:'', logoSize:60, signature:'Lic. María González — Directora Comercial',
-    footerText:'Gracias por elegirnos · presuprostudio.com',
-    thankYou:'Gracias por su consulta. Quedamos a su disposición.',
+    logo:'', logoSize:60, signature:'',
+    footerText:'', thankYou:'Gracias por su consulta. Quedamos a su disposición.',
   },
   brandConfig: { colorPrimary:'#1b9aaa', colorSecondary:'#0f4c75', colorAccent:'#f0a500', font:'DM Sans', preset:'modern' },
   budgetConfig: { prefix:'PRES-', validityDays:15, currency:'$', defaultTax:0, showDiscount:true, showSurcharge:true, showSignature:true, showLegal:true, showContactFooter:true },
-  catalog: [
-    {id:'svc1',name:'Consultoría Inicial',  description:'Diagnóstico y análisis de situación actual',            price:5000,   unit:'hora',     category:'Consultoría',active:true},
-    {id:'svc2',name:'Diseño de Identidad',  description:'Logotipo, paleta de colores y manual de marca',         price:45000,  unit:'servicio', category:'Diseño',     active:true},
-    {id:'svc3',name:'Desarrollo Web',       description:'Sitio web profesional responsive hasta 5 páginas',      price:120000, unit:'servicio', category:'Web',        active:true},
-    {id:'svc4',name:'Community Management', description:'Gestión de redes sociales — 3 publicaciones semanales', price:25000,  unit:'mes',      category:'Marketing',  active:true},
-    {id:'svc5',name:'Fotografía Comercial', description:'Sesión fotográfica de productos o espacios',            price:18000,  unit:'servicio', category:'Fotografía', active:false},
-  ],
+  catalog: [],
 };
-
+ 
 var STATE = { businessConfig:{}, brandConfig:{}, catalog:[], budgetConfig:{}, history:[] };
-
-
+ 
+ 
+ 
+/* ══ ONBOARDING ══════════════════════════════════════════════════════
+   Se muestra la primera vez que el usuario entra — antes de usar la app.
+   Campos obligatorios: nombre del negocio, email, contraseña nueva.
+   ════════════════════════════════════════════════════════════════ */
+function isOnboardingComplete() {
+  var b = STATE.businessConfig;
+  return !!(b.bizName && b.bizName.trim() && b.email && b.email.trim());
+}
+ 
+function showOnboarding() {
+  var ob = el('onboarding-overlay');
+  if (ob) ob.classList.remove('hidden');
+}
+ 
+function hideOnboarding() {
+  var ob = el('onboarding-overlay');
+  if (ob) ob.classList.add('hidden');
+}
+ 
+function completeOnboarding() {
+  var bizName = elVal('ob-biz-name').trim();
+  var email   = elVal('ob-email').trim();
+  var pw      = elVal('ob-password').trim();
+  var pw2     = elVal('ob-password2').trim();
+ 
+  /* Validate */
+  if (!bizName) { obError('El nombre del negocio es obligatorio'); return; }
+  if (!email || !email.includes('@')) { obError('Ingresá un email válido'); return; }
+  if (!pw || pw.length < 6) { obError('La contraseña debe tener al menos 6 caracteres'); return; }
+  if (pw !== pw2) { obError('Las contraseñas no coinciden'); return; }
+ 
+  /* Save business config */
+  STATE.businessConfig.bizName = bizName;
+  STATE.businessConfig.slogan  = elVal('ob-slogan').trim();
+  STATE.businessConfig.email   = email;
+  STATE.businessConfig.phone   = elVal('ob-phone').trim();
+  save(KEYS.businessConfig, STATE.businessConfig);
+ 
+  /* Save new password */
+  localStorage.setItem(KEYS.password, pw);
+  sessionStorage.setItem(APP_SESSION_KEY, '1');
+ 
+  hideOnboarding();
+  applyBrand();
+  populateAdminForms();
+  populateLoginScreen();
+  toast('¡Bienvenido! Tu cuenta está lista ✓', 'success');
+}
+ 
+function obError(msg) {
+  var e = el('ob-error');
+  if (e) { e.textContent = msg; e.style.display = 'block'; }
+}
+ 
 /* ══ SESIÓN DE APP ═══════════════════════════════════════════════════
    La contraseña protege TODO — no solo el panel admin.
    Se guarda en sessionStorage (se cierra al cerrar la pestaña).
    ════════════════════════════════════════════════════════════════ */
 var APP_SESSION_KEY = 'pp_session_ok';
-
+ 
 function isLoggedIn() {
   return sessionStorage.getItem(APP_SESSION_KEY) === '1';
 }
-
+ 
 function checkAppLogin() {
   var pw     = document.getElementById('app-pw-input') ?
                document.getElementById('app-pw-input').value : '';
@@ -128,8 +176,12 @@ function checkAppLogin() {
     sessionStorage.setItem(APP_SESSION_KEY, '1');
     document.getElementById('app-login-screen').classList.add('hidden');
     document.getElementById('app-pw-input').value = '';
-    /* Init app now that we're logged in */
-    initApp();
+    /* Check onboarding first */
+    if (!isOnboardingComplete()) {
+      showOnboarding();
+    } else {
+      initApp();
+    }
   } else {
     var errEl = document.getElementById('app-login-error');
     if (errEl) { errEl.style.display = 'block'; }
@@ -141,7 +193,7 @@ function checkAppLogin() {
     }
   }
 }
-
+ 
 function appLogout() {
   sessionStorage.removeItem(APP_SESSION_KEY);
   /* Show login screen */
@@ -150,7 +202,7 @@ function appLogout() {
   var inp = document.getElementById('app-pw-input');
   if (inp) { inp.value = ''; setTimeout(function(){ inp.focus(); }, 100); }
 }
-
+ 
 /* Populate login screen with business branding */
 function populateLoginScreen() {
   var b = STATE.businessConfig;
@@ -165,7 +217,7 @@ function populateLoginScreen() {
     if (iconEl) iconEl.style.display = 'none';
   }
 }
-
+ 
 /* ══ ARRANQUE ═══════════════════════════════════════════════════════ */
 /* Auto-refresh interval when on history tab */
 var _refreshInterval = null;
@@ -178,16 +230,16 @@ function startAutoRefresh() {
     }
   }, 15000); /* every 15 seconds */
 }
-
+ 
 document.addEventListener('DOMContentLoaded', function() {
   loadAll();
   /* Load Supabase key from localStorage if available */
   var savedKey = localStorage.getItem('pp_sb_key');
   if (savedKey && savedKey.length > 20) SB.key = savedKey;
-
+ 
   /* Populate login screen branding before showing anything */
   populateLoginScreen();
-
+ 
   if (!isLoggedIn()) {
     /* Show login — don't init the app yet */
     var ls = document.getElementById('app-login-screen');
@@ -196,13 +248,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (inp) setTimeout(function(){ inp.focus(); }, 150);
     return;
   }
-
-  /* Already logged in — hide login screen and init app */
+ 
+  /* Already logged in — hide login screen */
   var ls = document.getElementById('app-login-screen');
   if (ls) ls.classList.add('hidden');
-  initApp();
+  /* Check onboarding */
+  if (!isOnboardingComplete()) {
+    showOnboarding();
+  } else {
+    initApp();
+  }
 });
-
+ 
 function initApp() {
   applyBrand();
   initBudgetMeta();
@@ -213,7 +270,7 @@ function initApp() {
   populateAdminForms();
   setTimeout(refreshHistoryStatuses, 1500);
 }
-
+ 
 /* ══ PERSISTENCIA ═══════════════════════════════════════════════════ */
 function loadAll() {
   STATE.businessConfig = loadOrDefault(KEYS.businessConfig, DEFAULTS.businessConfig);
@@ -224,14 +281,11 @@ function loadAll() {
   /* Migrate: fix any corrupted status fields saved as objects */
   var migrated = false;
   STATE.history.forEach(function(h) {
-    if (h.status && typeof h.status === 'object') {
-      h.status = h.status.status || h.status.value || 'sent';
-      migrated = true;
-    }
-    if (h.status && ['sent','viewed','accepted','rejected'].indexOf(h.status) === -1) {
-      h.status = 'sent';
-      migrated = true;
-    }
+    var st = h.status;
+    if (st && typeof st === 'object') { h.status = st.status || st.value || 'sent'; migrated = true; }
+    else if (st === '[object Object]') { h.status = 'sent'; migrated = true; }
+    else if (st && typeof st === 'string' && ['sent','viewed','accepted','rejected'].indexOf(st) === -1) { h.status = 'sent'; migrated = true; }
+    else if (!st && h.sbId) { h.status = 'sent'; migrated = true; }
   });
   if (migrated) save(KEYS.history, STATE.history);
 }
@@ -246,7 +300,7 @@ function loadOrDefault(key, def) {
   } catch(e) { return isArr ? def.slice() : Object.assign({}, def); }
 }
 function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
-
+ 
 /* ══ MARCA ═══════════════════════════════════════════════════════════ */
 function applyBrand() {
   var b=STATE.businessConfig, br=STATE.brandConfig;
@@ -260,7 +314,7 @@ function applyBrand() {
   else { hide('header-logo'); show('header-logo-placeholder'); }
 }
 function setCSSVar(n,v){ document.documentElement.style.setProperty(n,v); }
-
+ 
 var PRESETS = {
   elegant:  {colorPrimary:'#c9a84c',colorSecondary:'#1a1a2e',colorAccent:'#e8c97a'},
   modern:   {colorPrimary:'#1b9aaa',colorSecondary:'#0f4c75',colorAccent:'#f0a500'},
@@ -296,7 +350,7 @@ function syncColorHex(which) {
   var hx=el('cfg-color-'+which+'-hex'),ci=el('cfg-color-'+which); if(!hx||!ci) return;
   var v=hx.value.trim(); if(/^#[0-9a-fA-F]{6}$/.test(v)){ci.value=v; applyColorsFromInputs();}
 }
-
+ 
 /* ══ META PRESUPUESTO ════════════════════════════════════════════════ */
 function initBudgetMeta() {
   var cfg=STATE.budgetConfig, today=new Date(), vd=new Date(today);
@@ -314,7 +368,7 @@ function nextBudgetNumber() {
 function bumpBudgetNumber() {
   var c=parseInt(localStorage.getItem(KEYS.lastNumber)||'0',10); localStorage.setItem(KEYS.lastNumber,String(c+1));
 }
-
+ 
 /* ══ ÍTEMS ═══════════════════════════════════════════════════════════ */
 var itemCounter=0;
 function addItem(prefill) {
@@ -370,7 +424,7 @@ function getItems() {
   });
   return result;
 }
-
+ 
 /* ══ CÁLCULOS ════════════════════════════════════════════════════════ */
 function calcTotals(items) {
   var sub=items.reduce(function(a,i){return a+i.subtotal;},0);
@@ -378,7 +432,7 @@ function calcTotals(items) {
   var da=sub*(dp/100), sa=(sub-da)*(sp/100), base=sub-da+sa, ta=base*(tp/100);
   return {subtotal:sub,discPct:dp,discAmt:da,surgePct:sp,surgeAmt:sa,taxPct:tp,taxAmt:ta,total:base+ta};
 }
-
+ 
 /* ══ PREVIEW ═════════════════════════════════════════════════════════ */
 function updatePreview() {
   var c=el('budget-preview'); if(!c) return;
@@ -393,18 +447,18 @@ function collectBudgetData() {
     items:items, totals:calcTotals(items), notes:elVal('f-notes'),
   };
 }
-
+ 
 /* ══ RENDER DOCUMENTO ════════════════════════════════════════════════ */
 function renderBudgetHTML(d) {
   var biz=d.biz,brand=d.brand,cfg=d.cfg,client=d.client,meta=d.meta,items=d.items,totals=d.totals,notes=d.notes,currency=d.currency;
   var c=totals;
   var cp=brand.colorPrimary||'#1a1a1a', cs=brand.colorSecondary||'#4a4a4a', ca=brand.colorAccent||'#888';
-
+ 
   var heroBlock=biz.logo
     ?'<img src="'+biz.logo+'" class="bdoc-logo" alt="'+escHtml(biz.bizName||'')+'" style="max-height:'+(biz.logoSize||60)+'px;max-width:'+Math.round((biz.logoSize||60)*3)+'px" />'
     :'<div class="bdoc-hero-name">'+escHtml(biz.bizName||'Mi Negocio')+'</div>';
   var heroSub=biz.slogan?'<div class="bdoc-hero-sub">'+escHtml(biz.slogan).toUpperCase()+'</div>':'';
-
+ 
   var itemsRows='';
   if(items.length>0){
     items.forEach(function(it,idx){
@@ -418,20 +472,20 @@ function renderBudgetHTML(d) {
   } else {
     itemsRows='<tr><td colspan="5" class="bdi-empty">Sin ítems agregados</td></tr>';
   }
-
+ 
   var tRows=
     '<tr><td class="btot-l">Subtotal</td><td class="btot-v">'+currency+'\u00a0'+fmtNum(c.subtotal)+'</td></tr>'+
     (c.discPct>0?'<tr class="btot-red"><td class="btot-l">Descuento ('+c.discPct+'%)</td><td class="btot-v">&minus; '+currency+'\u00a0'+fmtNum(c.discAmt)+'</td></tr>':'')+
     (c.surgePct>0?'<tr><td class="btot-l">Recargo ('+c.surgePct+'%)</td><td class="btot-v">+ '+currency+'\u00a0'+fmtNum(c.surgeAmt)+'</td></tr>':'')+
     (c.taxPct>0?'<tr><td class="btot-l">Impuesto ('+c.taxPct+'%)</td><td class="btot-v">+ '+currency+'\u00a0'+fmtNum(c.taxAmt)+'</td></tr>':'')+
     '<tr class="btot-grand"><td>TOTAL</td><td>'+currency+'\u00a0'+fmtNum(c.total)+'</td></tr>';
-
+ 
   var bizInfo=[];
   if(biz.phone)   bizInfo.push(escHtml(biz.phone));
   if(biz.email)   bizInfo.push(escHtml(biz.email));
   if(biz.website) bizInfo.push(escHtml(biz.website));
   if(biz.address) bizInfo.push(escHtml(biz.address));
-
+ 
   return (
     '<div class="budget-doc" style="--cp:'+cp+';--cs:'+cs+';--ca:'+ca+'">'+
     '<div class="bdoc-head">'+
@@ -482,7 +536,7 @@ function renderBudgetHTML(d) {
     '</div>'
   );
 }
-
+ 
 /* ══ EXPORT PDF ══════════════════════════════════════════════════════ */
 function exportPDF() {
   var data=collectBudgetData();
@@ -518,13 +572,13 @@ function buildPrintHTML(data) {
   var biz    = data.biz    || {};
   var meta   = data.meta   || {};
   var num    = meta.number ? escHtml(meta.number) : '';
-
+ 
   /* ── Compact header for repeated pages ── */
   var logoSize = biz.logoSize || 60;
   var logoHTML = biz.logo
     ? '<img src="' + biz.logo + '" style="max-height:' + Math.round(logoSize * 0.55) + 'px;max-width:140px;object-fit:contain;display:block;" alt="" />'
     : '<span style="font-family:\'DM Serif Display\',serif;font-size:16px;font-weight:400;letter-spacing:-0.5px;color:' + p + '">' + escHtml(biz.bizName || '') + '</span>';
-
+ 
   /* ── Fixed header HTML ── */
   var pageHeader =
     '<div class="ph-wrap">' +
@@ -535,26 +589,26 @@ function buildPrintHTML(data) {
       '</div>' +
     '</div>' +
     '<div class="ph-band"></div>';
-
+ 
   /* ── Fixed footer HTML ── */
   var footerParts = [];
   if (biz.phone)   footerParts.push(escHtml(biz.phone));
   if (biz.email)   footerParts.push(escHtml(biz.email));
   if (biz.website) footerParts.push(escHtml(biz.website));
   if (biz.address) footerParts.push(escHtml(biz.address));
-
+ 
   var pageFooter =
     '<div class="pf-wrap">' +
       '<div class="pf-left">' + footerParts.join(' &nbsp;&middot;&nbsp; ') + '</div>' +
       '<div class="pf-right">' + escHtml(biz.footerText || '') + '</div>' +
     '</div>';
-
+ 
   /* ── Main body (no header/footer — those are fixed) ── */
   var bodyHTML = renderBudgetHTML(data);
-
+ 
   /* ── CSS ── */
   var css = buildPDFStyles(brand);
-
+ 
   return '<!DOCTYPE html>' +
     '<html lang="es"><head><meta charset="UTF-8"/>' +
     '<title>Presupuesto ' + num + '</title>' +
@@ -565,24 +619,24 @@ function buildPrintHTML(data) {
       '<div class="page-content">' + bodyHTML + '</div>' +
     '</body></html>';
 }
-
+ 
 function buildPDFStyles(brand) {
   var p = (brand && brand.colorPrimary)   || '#1a1a1a';
   var s = (brand && brand.colorSecondary) || '#4a4a4a';
   var a = (brand && brand.colorAccent)    || '#888888';
-
+ 
   /* Header height + footer height in mm — must match @page margins */
   var HH = '18mm'; /* header height  → top margin    */
   var FH = '12mm'; /* footer height  → bottom margin */
-
+ 
   return [
     '@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap");',
-
+ 
     /* ── BASE ── */
     '*{box-sizing:border-box;margin:0;padding:0;}',
     "html,body{font-family:'DM Sans',sans-serif;background:#fff;color:#1a1a1a;",
     "  -webkit-print-color-adjust:exact;print-color-adjust:exact;}",
-
+ 
     /* ── PAGE ── */
     '@media print{',
     '  @page{',
@@ -595,7 +649,7 @@ function buildPDFStyles(brand) {
     '  .bdoc-head{display:none !important;}',     /* hide the first-page header from the doc body */
     '  .bdoc-footer{display:none !important;}',   /* hide inline footer — repeated one is fixed */
     '}',
-
+ 
     /* ── FIXED HEADER (repeats on every page) ── */
     '.page-header{',
     '  position:fixed;top:0;left:0;right:0;',
@@ -611,7 +665,7 @@ function buildPDFStyles(brand) {
     '.ph-label{display:block;font-size:7px;letter-spacing:.14em;color:#aaa;font-weight:600;text-transform:uppercase;}',
     '.ph-num{display:block;font-size:13px;font-weight:700;color:#1a1a1a;}',
     '.ph-band{height:3px;background:' + p + ';}',
-
+ 
     /* ── FIXED FOOTER (repeats on every page) ── */
     '.page-footer{',
     '  position:fixed;bottom:0;left:0;right:0;',
@@ -624,16 +678,16 @@ function buildPDFStyles(brand) {
     '  color:rgba(255,255,255,.85);font-size:7.5px;',
     '}',
     '.pf-right{text-align:right;color:rgba(255,255,255,.6);}',
-
+ 
     /* ── CONTENT WRAPPER ── */
     '.page-content{',
     '  margin-top:0;',   /* @page top margin already accounts for header */
     '}',
-
+ 
     /* ── DOCUMENT ── */
     ':root{--cp:' + p + ';--cs:' + s + ';--ca:' + a + ';}',
     ".budget-doc{font-family:'DM Sans',sans-serif;font-size:10px;line-height:1.6;color:#1a1a1a;background:#fff;width:100%;}",
-
+ 
     /* ── DOCUMENT HEADER (shown only on first page via @media screen, hidden in print) ── */
     '.bdoc-head{display:flex;justify-content:space-between;align-items:flex-start;padding:32px 48px 24px;}',
     ".bdoc-hero-name{font-family:'DM Serif Display',serif;font-size:40px;font-weight:400;letter-spacing:-1.5px;color:var(--cp);line-height:.95;}",
@@ -643,10 +697,10 @@ function buildPDFStyles(brand) {
     '.bdoc-meta-table{border-collapse:collapse;font-size:9px;}',
     '.bmt-k{color:#aaa;letter-spacing:.1em;font-size:7px;font-weight:600;padding:2px 12px 2px 0;text-align:right;}',
     '.bmt-v{color:#1a1a1a;font-weight:600;text-align:right;font-size:9.5px;}',
-
+ 
     /* ── BAND ── */
     '.bdoc-band{height:3px;background:var(--cp);}',
-
+ 
     /* ── CLIENT ── */
     '.bdoc-section-client{display:flex;padding:18px 48px 16px;border-bottom:1px solid #ebebeb;}',
     '.bdoc-client-col{flex:1;}',
@@ -655,7 +709,7 @@ function buildPDFStyles(brand) {
     '.bdoc-client-main{font-size:13px;font-weight:700;color:#1a1a1a;margin-bottom:3px;line-height:1.2;}',
     '.bdoc-client-info{font-size:8.5px;color:#666;line-height:1.8;}',
     '.bdoc-placeholder{color:#ccc;font-style:italic;}',
-
+ 
     /* ── TABLE ── */
     '.bdoc-items-table{width:100%;border-collapse:collapse;}',
     '.bdoc-items-table thead{display:table-header-group;}', /* repeat thead on every page */
@@ -668,46 +722,64 @@ function buildPDFStyles(brand) {
     '.bdi-n{color:#ccc;font-size:8px;text-align:center;}.bdi-sub{font-size:7.5px;color:#999;font-weight:400;}',
     '.bdi-r{text-align:right;color:#444;}.bdi-c{text-align:center;color:#666;}.bdi-total{text-align:right;font-weight:600;}',
     '.bdi-empty{text-align:center;color:#ccc;padding:24px;font-style:italic;}',
-
+ 
     /* ── LOWER ── */
     '.bdoc-lower{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 48px;gap:28px;page-break-inside:avoid;}',
     '.bdoc-lower-left{flex:1;max-width:55%;}.bdoc-lower-right{min-width:210px;}',
     '.bdoc-notes-text{font-size:8px;color:#666;line-height:1.8;margin-top:5px;}',
-
+ 
     /* ── TOTALS ── */
     '.bdoc-totals-tbl{width:100%;border-collapse:collapse;font-size:9px;}',
     '.bdoc-totals-tbl td{padding:3.5px 0;}.btot-l{color:#888;padding-right:20px;}.btot-v{text-align:right;color:#333;font-weight:500;}',
     '.btot-red td{color:#c0392b;}.btot-grand{border-top:2.5px solid var(--cp);}',
     '.btot-grand td{padding-top:8px;font-size:13px;font-weight:700;color:var(--cp);}',
-
+ 
     /* ── LEGAL / SIGNATURE ── */
     '.bdoc-legal-block{padding:12px 48px;font-size:7px;color:#bbb;line-height:1.8;border-top:1px solid #f0f0f0;page-break-inside:avoid;}',
     '.bdoc-sig-block{padding:0 48px 18px;page-break-inside:avoid;}',
     '.bdoc-sig-line{width:130px;border-top:1.5px solid #ccc;margin-top:28px;margin-bottom:5px;}.bdoc-sig-name{font-size:8px;color:#777;}',
-
+ 
     /* ── INLINE FOOTER (hidden in print — fixed footer used instead) ── */
     '.bdoc-footer{display:flex;justify-content:space-between;align-items:center;padding:12px 48px;background:var(--cp);color:rgba(255,255,255,.9);font-size:8px;}',
     '.bdoc-footer-right{text-align:right;}.bdoc-footer-ty{color:rgba(255,255,255,.55);font-style:italic;margin-top:2px;}',
   ].join('\n');
 }
-
-
+ 
+ 
 /* ══ GUARDAR / HISTORIAL ═════════════════════════════════════════════ */
 /* ══ TRACKING / LINK COMPARTIBLE ════════════════════════════════════ */
-
+ 
 /* Status labels and styles */
-var STATUS_LABELS = { sent:'Enviado', viewed:'Visto', accepted:'Aceptado', rejected:'Rechazado' }; // v2
+var STATUS_LABELS = { sent:'Enviado', viewed:'Visto', accepted:'Aceptado', rejected:'Rechazado' };
 var STATUS_COLORS = { sent:'#1a5fb4', viewed:'#854d0e', accepted:'#166534', rejected:'#991b1b' };
 var STATUS_BG     = { sent:'#e8f0fe', viewed:'#fef9c3', accepted:'#dcfce7', rejected:'#fee2e2' };
-
+ 
 function generateLink(idx) {
   if (!SB_ENABLED()) {
     toast('Configurá la anon key de Supabase en script.js primero', 'error');
     return;
   }
   var h = STATE.history[idx]; if (!h) return;
+ 
+  /* If link already exists — just copy it again, don't create a new one */
+  if (h.sbId) {
+    var base = VIEWER_BASE_URL ? VIEWER_BASE_URL.replace(/\/$/, '') : window.location.href.replace(/[^/]*$/, '').replace(/\/$/, '');
+    var existingUrl = base + '/viewer.html?id=' + h.sbId;
+    var doCopyExisting = function(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+          toast('Link copiado al portapapeles ✓', 'success');
+        }).catch(function() { prompt('Copiá este link:', text); });
+      } else {
+        prompt('Copiá este link:', text);
+      }
+    };
+    doCopyExisting(existingUrl);
+    return;
+  }
+ 
   toast('Generando link...', 'info');
-
+ 
   var payload = {
     tenant_id:   _tenantId,
     budget_data: {
@@ -724,12 +796,12 @@ function generateLink(idx) {
     status:     'sent',
     expires_at: null,
   };
-
+ 
   sbFetch('POST', 'budgets_shared', payload)
     .then(function(rows) {
       var row = Array.isArray(rows) ? rows[0] : rows;
       if (!row || !row.id) throw new Error('No se recibió ID');
-
+ 
       /* Store the supabase id on the history entry */
       STATE.history[idx].sbId     = row.id;
       STATE.history[idx].status   = 'sent';
@@ -737,7 +809,7 @@ function generateLink(idx) {
       STATE.history[idx].viewCount = 0;
       STATE.history[idx].lastViewed = null;
       save(KEYS.history, STATE.history);
-
+ 
       /* Build viewer URL */
       var base;
       if (VIEWER_BASE_URL) {
@@ -748,12 +820,12 @@ function generateLink(idx) {
         base = window.location.href.replace(/[^/]*$/, '').replace(/\/$/, '');
       }
       var url = base + '/viewer.html?id=' + row.id;
-
+ 
       /* Warn if still local */
       if (url.indexOf('file://') === 0) {
         toast('⚠️ Link local — el cliente no podrá abrirlo. Configurá VIEWER_BASE_URL en script.js', 'error');
       }
-
+ 
       /* Copy to clipboard */
       var doCopy = function(text) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -772,7 +844,7 @@ function generateLink(idx) {
       toast('Error al generar link: ' + e.message, 'error');
     });
 }
-
+ 
 /* ── NOTIFICACIÓN DE CAMBIO DE ESTADO ───────────────────────────────
    Cuando un presupuesto pasa a aceptado o rechazado, mostramos:
    1. Un toast grande y persistente
@@ -784,7 +856,7 @@ function notifyStatusChange(entry, newStatus) {
   var number  = (entry.meta    && entry.meta.number)  || '';
   var total   = (entry.totals  && entry.totals.total) || 0;
   var currency= entry.currency || '$';
-
+ 
   if (newStatus === 'accepted') {
     /* Big persistent toast */
     toastPersistent(
@@ -807,7 +879,7 @@ function notifyStatusChange(entry, newStatus) {
     );
   }
 }
-
+ 
 /* Toast que no desaparece hasta que el usuario lo cierra */
 function toastPersistent(msg, type) {
   type = type || 'info';
@@ -823,7 +895,7 @@ function toastPersistent(msg, type) {
   /* Auto-dismiss after 12 seconds */
   setTimeout(function() { if (t.parentNode) { t.classList.add('out'); setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 400); } }, 12000);
 }
-
+ 
 /* Browser push notification (requiere permiso del usuario) */
 function sendBrowserNotification(title, body) {
   if (!('Notification' in window)) return;
@@ -835,7 +907,7 @@ function sendBrowserNotification(title, body) {
     });
   }
 }
-
+ 
 /* Pedir permiso de notificaciones al cargar (si hay presupuestos pendientes) */
 function requestNotificationPermission() {
   if (!('Notification' in window)) return;
@@ -847,7 +919,7 @@ function requestNotificationPermission() {
     if (hasPending) Notification.requestPermission();
   }
 }
-
+ 
 /* ── REFRESH DE ESTADOS ──────────────────────────────────────────────
    Estrategia: siempre consultar Supabase y actualizar.
    La notificación se dispara cuando:
@@ -857,36 +929,36 @@ function requestNotificationPermission() {
    ─────────────────────────────────────────────────────────────── */
 function refreshHistoryStatuses() {
   if (!SB_ENABLED()) return;
-
+ 
   var withSbId = STATE.history.filter(function(h) { return !!h.sbId; });
   if (!withSbId.length) return;
-
+ 
   var ids = withSbId.map(function(h){ return h.sbId; }).join(',');
-
+ 
   sbFetch('GET', 'budgets_shared?id=in.(' + ids + ')&select=id,status,view_count,last_viewed_at')
     .then(function(rows) {
       if (!rows || !rows.length) return;
       var changed = false;
-
+ 
       rows.forEach(function(row) {
         var idx = STATE.history.findIndex(function(h){ return h.sbId === row.id; });
         if (idx === -1) return;
-
+ 
         var entry     = STATE.history[idx];
         var newStatus = typeof row.status === 'string' ? row.status : 'sent';
         /* Normalize prevStatus — handle object corruption */
         var prevStatus = entry.status;
         if (prevStatus && typeof prevStatus === 'object') prevStatus = prevStatus.status || 'sent';
         prevStatus = String(prevStatus || 'sent');
-
+ 
         /* Always update counts */
         entry.viewCount  = row.view_count  || entry.viewCount  || 0;
         entry.lastViewed = row.last_viewed_at || entry.lastViewed || null;
         changed = true;
-
+ 
         /* Update status */
         entry.status = newStatus;
-
+ 
         /* Notify if:
            - new status is a final state (accepted/rejected)
            - AND previous local status was not already that final state
@@ -896,13 +968,13 @@ function refreshHistoryStatuses() {
           notifyStatusChange(entry, newStatus);
         }
       });
-
+ 
       if (changed) { save(KEYS.history, STATE.history); renderHistory(); }
     })
     .catch(function(e){ console.warn('[PresuPro] refresh error:', e.message); });
 }
-
-
+ 
+ 
 function saveBudget() {
   var data=collectBudgetData();
   if(!data.client.name)   {toast('Completá el nombre del cliente antes de guardar','error');return;}
@@ -951,10 +1023,10 @@ function exportHistoryPDF(idx) {
   setTimeout(function(){win.print();},800);
   toast('Elegí "Guardar como PDF" \u2713','success');
 }
-
+ 
 /* ══ HISTORIAL CON BÚSQUEDA ══════════════════════════════════════════ */
 var historyFilter = { text:'', dateFrom:'', dateTo:'' };
-
+ 
 function renderHistory() {
   var container=el('history-list'); if(!container) return;
   var list=getFilteredHistory();
@@ -968,11 +1040,17 @@ function renderHistory() {
   }
   container.innerHTML=list.map(function(item){
     var h=item.h, idx=item.idx, c=h.client||{}, m=h.meta||{}, t=h.totals||{};
-    /* Ensure status is always a plain string, never an object */
-    var rawStatus = h.status || (h.sbId ? 'sent' : '');
-    var status    = (rawStatus && typeof rawStatus === 'object') ? (rawStatus.status || rawStatus.value || 'sent') : String(rawStatus || '');
-    /* Only allow known values */
-    if (['sent','viewed','accepted','rejected'].indexOf(status) === -1) status = h.sbId ? 'sent' : '';
+    /* Sanitize status — always a plain string */
+    var rawStatus = h.status;
+    if (rawStatus && typeof rawStatus === 'object') rawStatus = rawStatus.status || rawStatus.value || 'sent';
+    var status = String(rawStatus || (h.sbId ? 'sent' : ''));
+    /* Handle any corruption including "[object Object]" string */
+    if (!status || status.indexOf('[') === 0 || ['sent','viewed','accepted','rejected'].indexOf(status) === -1) {
+      /* Try to recover from sbId-based refresh */
+      status = h.sbId ? 'sent' : '';
+      /* Fix in storage too */
+      if (h.status !== status) { h.status = status; save(KEYS.history, STATE.history); }
+    }
     var label     = STATUS_LABELS[status] || '';
     var badgeStyle= status ? 'background:'+STATUS_BG[status]+';color:'+STATUS_COLORS[status]+';' : '';
     var viewInfo  = '';
@@ -1004,7 +1082,7 @@ function renderHistory() {
   }).join('');
   updateHistoryCount(list.length,STATE.history.length);
 }
-
+ 
 function getFilteredHistory() {
   var result=[];
   STATE.history.forEach(function(h,idx){
@@ -1023,13 +1101,13 @@ function getFilteredHistory() {
   });
   return result;
 }
-
+ 
 function updateHistoryCount(shown, total) {
   var el_count=el('history-count'); if(!el_count) return;
   if(total===0) { el_count.textContent=''; return; }
   el_count.textContent = shown===total ? total+' presupuesto'+(total!==1?'s':'') : shown+' de '+total+' resultado'+(shown!==1?'s':'');
 }
-
+ 
 function onHistorySearch() {
   historyFilter.text    = elVal('history-search').trim();
   historyFilter.dateFrom= elVal('history-date-from');
@@ -1041,7 +1119,7 @@ function clearHistorySearch() {
   setVal('history-search',''); setVal('history-date-from',''); setVal('history-date-to','');
   renderHistory();
 }
-
+ 
 /* ══ WHATSAPP ════════════════════════════════════════════════════════ */
 var WA_TEMPLATES=[
   'Estimado/a {cliente}, le hacemos llegar el presupuesto N\u00b0 {numero} de {negocio} por un total de {total}, con validez hasta el {fecha}. Quedamos a su disposici\u00f3n ante cualquier consulta.',
@@ -1087,7 +1165,7 @@ function populateWAForm() {
   if(!saved){var f=document.querySelector('.wa-tpl-card[data-tpl="0"]'); if(f){f.classList.add('active');setVal('cfg-wa-message',WA_TEMPLATES[0]);}}
   updateWAPreview();
 }
-
+ 
 /* ══ ADMIN ═══════════════════════════════════════════════════════════ */
 function openAdminModal() {
   /* Already authenticated via app login — go straight to panel */
@@ -1113,13 +1191,13 @@ function checkAdminPw() {
     setTimeout(function(){inp.style.borderColor='';inp.style.boxShadow='';},1500);
   }
 }
-
+ 
 /* ══ AVISO DE CAMBIOS SIN GUARDAR ═══════════════════════════════════ */
 var _adminDirty = false; /* true cuando hay cambios sin guardar */
-
+ 
 function markDirty() { _adminDirty = true; }
 function markClean() { _adminDirty = false; }
-
+ 
 /* Attach dirty listeners to all admin inputs after panel opens */
 function attachDirtyListeners() {
   var inputs = document.querySelectorAll('.admin-content input, .admin-content textarea, .admin-content select');
@@ -1130,7 +1208,7 @@ function attachDirtyListeners() {
     inp.addEventListener('change', markDirty);
   });
 }
-
+ 
 /* Intercept tab switching to warn about unsaved changes */
 function switchAdminTabSafe(tab, btn) {
   if (_adminDirty) {
@@ -1143,7 +1221,7 @@ function switchAdminTabSafe(tab, btn) {
     switchAdminTab(tab, btn);
   }
 }
-
+ 
 function switchAdminTab(tab,btn) {
   qsa('.admin-tab-content').forEach(function(c){c.classList.remove('active');});
   qsa('.admin-tab').forEach(function(b){b.classList.remove('active');});
@@ -1200,7 +1278,7 @@ function changePassword() {
   setVal('cfg-pw-current',''); setVal('cfg-pw-new',''); setVal('cfg-pw-confirm','');
   toast('Contraseña actualizada \u2713','success');
 }
-
+ 
 /* ══ SERVICIOS ═══════════════════════════════════════════════════════ */
 var editingServiceId=null;
 function renderServicesAdmin() {
@@ -1237,7 +1315,7 @@ function deleteService(id) {
     STATE.catalog=STATE.catalog.filter(function(s){return s.id!==id;}); save(KEYS.catalog,STATE.catalog); renderServicesAdmin(); toast('Servicio eliminado','info');
   });
 }
-
+ 
 /* ══ LOGO ════════════════════════════════════════════════════════════ */
 function onLogoSizeChange(val) {
   val = parseInt(val, 10);
@@ -1250,7 +1328,7 @@ function applyLogoSizeInput() {
   setVal('cfg-logo-size', size);
   var disp = el('cfg-logo-size-display'); if(disp) disp.textContent = size + 'px';
 }
-
+ 
 function handleLogoUpload(event) {
   var file=event.target.files[0]; if(!file) return;
   if(file.size>2*1024*1024){toast('Máx 2MB','error');return;}
@@ -1259,7 +1337,7 @@ function handleLogoUpload(event) {
   reader.readAsDataURL(file);
 }
 function removeLogo(){STATE.businessConfig.logo='';var pv=el('cfg-logo-preview');if(pv){pv.src='';hide('cfg-logo-preview');show('cfg-logo-placeholder');}var cb=el('btn-crop-logo');if(cb)cb.style.display='none';save(KEYS.businessConfig,STATE.businessConfig);applyBrand();updatePreview();toast('Logo removido','info');}
-
+ 
 /* ══ CONFIRMAR ═══════════════════════════════════════════════════════ */
 var confirmCb=null;
 function confirmAction(title,msg,fn){el('confirm-title').textContent=title;el('confirm-message').textContent=msg;confirmCb=fn;el('confirm-overlay').classList.remove('hidden');}
@@ -1271,7 +1349,7 @@ document.addEventListener('DOMContentLoaded',function(){
   el('confirm-overlay')&&el('confirm-overlay').addEventListener('click',function(e){if(e.target===el('confirm-overlay'))closeConfirmModal();});
 });
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeAdminModal();closeServiceModal();closeConfirmModal();}});
-
+ 
 /* ══ VISTAS ══════════════════════════════════════════════════════════ */
 function switchView(name){
   qsa('.view').forEach(function(v){v.classList.remove('active');});
@@ -1281,7 +1359,7 @@ function switchView(name){
   if(name==='history'){renderHistory();refreshHistoryStatuses();requestNotificationPermission();}
 }
 function togglePwVisibility(inputId,btn){var inp=el(inputId);if(!inp)return;var isText=inp.type==='text';inp.type=isText?'password':'text';btn.innerHTML=isText?'<i class="fa-solid fa-eye"></i>':'<i class="fa-solid fa-eye-slash"></i>';}
-
+ 
 /* ══ TOASTS ══════════════════════════════════════════════════════════ */
 function toast(msg,type){
   type=type||'info';var icons={success:'fa-circle-check',error:'fa-circle-xmark',info:'fa-circle-info'};
@@ -1289,7 +1367,7 @@ function toast(msg,type){
   var c=el('toast-container');if(c)c.appendChild(t);
   setTimeout(function(){t.classList.add('out');setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t);},350);},3200);
 }
-
+ 
 /* ══ LOGO CROP ═══════════════════════════════════════════════════════ */
 /* ══ LOGO CROP ═══════════════════════════════════════════════════════
    Estado:
@@ -1305,7 +1383,7 @@ var cropState = {
   dragging:false, lastX:0, lastY:0, originalSrc:''
 };
 var CROP_SIZE = 300; /* canvas pixels */
-
+ 
 function openCropModal() {
   var logo = STATE.businessConfig.logo;
   if (!logo) { toast('Subí un logo primero', 'error'); return; }
@@ -1321,14 +1399,14 @@ function openCropModal() {
   img.src = logo;
 }
 function closeCropModal() { el('crop-overlay').classList.add('hidden'); }
-
+ 
 function cropInitCanvas() {
   var canvas = el('crop-canvas');
   canvas.width  = CROP_SIZE;
   canvas.height = CROP_SIZE;
   canvas.style.width  = CROP_SIZE + 'px';
   canvas.style.height = CROP_SIZE + 'px';
-
+ 
   /* Mouse */
   canvas.onmousedown = function(e) {
     cropState.dragging = true;
@@ -1347,7 +1425,7 @@ function cropInitCanvas() {
   };
   canvas.onmouseup    = function() { cropState.dragging = false; };
   canvas.onmouseleave = function() { cropState.dragging = false; };
-
+ 
   /* Touch */
   canvas.ontouchstart = function(e) {
     e.preventDefault();
@@ -1368,7 +1446,7 @@ function cropInitCanvas() {
     cropDraw();
   };
   canvas.ontouchend = function() { cropState.dragging = false; };
-
+ 
   /* Wheel zoom */
   canvas.onwheel = function(e) {
     e.preventDefault();
@@ -1380,19 +1458,19 @@ function cropInitCanvas() {
     if (slr) slr.value = cropScaleToSlider(newScale);
   };
 }
-
+ 
 /* Fit the image inside the canvas, centered */
 function cropResetView() {
   var img = cropState.img;
   var scaleW = CROP_SIZE / img.naturalWidth;
   var scaleH = CROP_SIZE / img.naturalHeight;
   var fit    = Math.min(scaleW, scaleH);
-
+ 
   cropState.minScale = fit;
   cropState.scale    = fit;
   cropState.x = (CROP_SIZE - img.naturalWidth  * fit) / 2;
   cropState.y = (CROP_SIZE - img.naturalHeight * fit) / 2;
-
+ 
   /* Reset slider to midpoint (fit = slider 0) */
   var slr = el('crop-zoom');
   if (slr) {
@@ -1402,7 +1480,7 @@ function cropResetView() {
     slr.value = '0';
   }
 }
-
+ 
 /* slider value 0–100 → actual scale */
 function cropSliderToScale(v) {
   /* 0 = fit, 100 = fit*5 */
@@ -1411,13 +1489,13 @@ function cropSliderToScale(v) {
 function cropScaleToSlider(scale) {
   return Math.round((scale / cropState.minScale - 1) / 4 * 100);
 }
-
+ 
 function cropZoomChange(sliderVal) {
   if (!cropState.img) return;
   var newScale = cropSliderToScale(sliderVal);
   cropApplyScale(newScale);
 }
-
+ 
 /* Zoom toward canvas center, then clamp */
 function cropApplyScale(newScale) {
   var img = cropState.img;
@@ -1429,7 +1507,7 @@ function cropApplyScale(newScale) {
   cropClampPos();
   cropDraw();
 }
-
+ 
 /* Prevent image from leaving canvas completely — always keep ≥40px visible */
 function cropClampPos() {
   var img = cropState.img;
@@ -1443,12 +1521,12 @@ function cropClampPos() {
   if (cropState.y + h < margin)       cropState.y = margin - h;
   if (cropState.y > CROP_SIZE - margin) cropState.y = CROP_SIZE - margin;
 }
-
+ 
 function cropDraw() {
   var canvas = el('crop-canvas');
   if (!canvas || !cropState.img) return;
   var ctx = canvas.getContext('2d');
-
+ 
   /* Checkerboard background (shows transparency) */
   ctx.clearRect(0, 0, CROP_SIZE, CROP_SIZE);
   var sq = 12;
@@ -1458,7 +1536,7 @@ function cropDraw() {
       ctx.fillRect(rx, ry, sq, sq);
     }
   }
-
+ 
   /* Image */
   ctx.drawImage(
     cropState.img,
@@ -1466,13 +1544,13 @@ function cropDraw() {
     cropState.img.naturalWidth  * cropState.scale,
     cropState.img.naturalHeight * cropState.scale
   );
-
+ 
   /* Subtle border overlay */
   ctx.strokeStyle = 'rgba(0,0,0,.15)';
   ctx.lineWidth   = 1;
   ctx.strokeRect(0.5, 0.5, CROP_SIZE - 1, CROP_SIZE - 1);
 }
-
+ 
 function applyCrop() {
   var canvas = el('crop-canvas'); if (!canvas) return;
   var out = canvas.toDataURL('image/png');
@@ -1484,8 +1562,8 @@ function applyCrop() {
   closeCropModal();
   toast('Logo recortado ✓', 'success');
 }
-
-
+ 
+ 
 /* ══ SUPABASE CONFIG (Admin) ══════════════════════════════════════════ */
 function saveSupabaseConfig() {
   var url = elVal('cfg-sb-url').trim();
@@ -1499,20 +1577,20 @@ function saveSupabaseConfig() {
   SB_ENABLED(); // trigger update
   toast('Configuración de Supabase guardada ✓', 'success');
 }
-
+ 
 function loadSupabaseConfig() {
   var url = localStorage.getItem('pp_sb_url');
   var key = localStorage.getItem('pp_sb_key');
   if (url) SB.url = url;
   if (key) SB.key = key;
 }
-
+ 
 function populateIntegrationsForm() {
   setVal('cfg-sb-url', localStorage.getItem('pp_sb_url') || '');
   setVal('cfg-sb-key', localStorage.getItem('pp_sb_key') || '');
   var res = el('sb-test-result'); if (res) res.textContent = '';
 }
-
+ 
 function testSupabase() {
   var url = elVal('cfg-sb-url').trim();
   var key = elVal('cfg-sb-key').trim();
@@ -1534,10 +1612,10 @@ function testSupabase() {
     if (res) { res.textContent = '✗ No se pudo conectar. Verificá la URL'; res.className = 'sb-test-result err'; }
   });
 }
-
-
+ 
+ 
 /* ══ TRACKING / SHARING ══════════════════════════════════════════════ */
-
+ 
 /* Returns or creates a stable tenant_id (email or random UUID) */
 function getTenantId() {
   var stored = localStorage.getItem(KEYS.tenantId);
@@ -1548,7 +1626,7 @@ function getTenantId() {
   localStorage.setItem(KEYS.tenantId, tid);
   return tid;
 }
-
+ 
 /* Share a budget: uploads to Supabase and copies link */
 function shareBudget(idx) {
   /* idx === undefined means current form, else from history */
@@ -1561,17 +1639,17 @@ function shareBudget(idx) {
     data = STATE.history[idx];
     if (!data) return;
   }
-
+ 
   /* Check Supabase is configured */
   if (SB.url.indexOf('TU-PROYECTO') !== -1) {
     toast('Configurá la anon key de Supabase en script.js primero', 'error'); return;
   }
-
+ 
   toast('Generando link...', 'info');
-
+ 
   var tenantId = getTenantId();
   var meta = data.meta || {};
-
+ 
   /* Check if already shared (has a shareId saved) */
   var existingShareId = data.shareId || null;
   if (existingShareId) {
@@ -1581,7 +1659,7 @@ function shareBudget(idx) {
       .catch(function() { toast('Error al actualizar el link compartido', 'error'); });
     return;
   }
-
+ 
   /* Calculate expiry: validity date + 30 days buffer */
   var expiresAt = null;
   if (meta.valid) {
@@ -1589,7 +1667,7 @@ function shareBudget(idx) {
     exp.setDate(exp.getDate() + 30);
     expiresAt = exp.toISOString();
   }
-
+ 
   sbFetch('POST', 'shared_budgets', '', {
     tenant_id:     tenantId,
     budget_number: meta.number || '',
@@ -1599,7 +1677,7 @@ function shareBudget(idx) {
   }).then(function(rows) {
     var row = Array.isArray(rows) ? rows[0] : rows;
     if (!row || !row.id) { toast('Error al crear el link', 'error'); return; }
-
+ 
     /* Save shareId back to history entry */
     if (idx !== undefined) {
       STATE.history[idx].shareId = row.id;
@@ -1607,19 +1685,19 @@ function shareBudget(idx) {
       save(KEYS.history, STATE.history);
       renderHistory();
     }
-
+ 
     copyShareLink(row.id, data);
   }).catch(function(e) {
     console.error(e);
     toast('No se pudo conectar con Supabase. Verificá la configuración.', 'error');
   });
 }
-
+ 
 function copyShareLink(shareId, data) {
   /* Build the URL — same folder as index.html */
   var base = window.location.href.replace(/\/[^\/]*$/, '/');
   var url  = base + 'viewer.html?id=' + shareId;
-
+ 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url)
       .then(function() { toast('Link copiado al portapapeles ✓', 'success'); })
@@ -1628,7 +1706,7 @@ function copyShareLink(shareId, data) {
     fallbackCopyText(url);
   }
 }
-
+ 
 function fallbackCopyText(text) {
   var ta = document.createElement('textarea');
   ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px;opacity:0;';
@@ -1637,7 +1715,7 @@ function fallbackCopyText(text) {
   catch(e) { toast('No se pudo copiar. URL: ' + text, 'info'); }
   document.body.removeChild(ta);
 }
-
+ 
 /* Poll tracking status for a shared budget */
 function refreshShareStatus(shareId, idx) {
   if (SB.url.indexOf('TU-PROYECTO') !== -1) return;
@@ -1656,9 +1734,9 @@ function refreshShareStatus(shareId, idx) {
       renderHistory();
     }).catch(console.error);
 }
-
+ 
 /* Status label helpers */
-var STATUS_LABELS = {
+var SHARE_STATUS_LABELS = {
   sent:     { text:'Enviado',   cls:'status-sent'     },
   viewed:   { text:'Visto',     cls:'status-viewed'   },
   accepted: { text:'Aceptado',  cls:'status-accepted' },
@@ -1667,7 +1745,7 @@ var STATUS_LABELS = {
 function shareStatusBadge(h) {
   if (!h.shareId) return '';
   var st = h.shareStatus || 'sent';
-  var lbl = STATUS_LABELS[st] || STATUS_LABELS.sent;
+  var lbl = SHARE_STATUS_LABELS[st] || SHARE_STATUS_LABELS.sent;
   var extra = '';
   if (st === 'viewed' && h.shareLastViewed) {
     extra = ' &middot; ' + timeAgo(h.shareLastViewed);
@@ -1679,7 +1757,7 @@ function shareStatusBadge(h) {
   var views = h.shareViewCount > 0 ? ' <span class="badge-views">' + h.shareViewCount + 'x</span>' : '';
   return '<span class="share-badge ' + lbl.cls + '">' + lbl.text + extra + views + '</span>';
 }
-
+ 
 function timeAgo(isoStr) {
   var diff = Math.floor((Date.now() - new Date(isoStr)) / 1000);
   if (diff < 60)   return 'hace un momento';
@@ -1687,8 +1765,8 @@ function timeAgo(isoStr) {
   if (diff < 86400)return 'hace ' + Math.floor(diff/3600) + ' h';
   return 'hace ' + Math.floor(diff/86400) + ' d';
 }
-
-
+ 
+ 
 /* ══ UTILIDADES ══════════════════════════════════════════════════════ */
 function el(id){return document.getElementById(id);}
 function qsa(sel){return Array.prototype.slice.call(document.querySelectorAll(sel));}
@@ -1709,3 +1787,4 @@ function timeAgo(isoStr) {
 }
 function fmtDateISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function fmtDateDisplay(iso){if(!iso)return '—';var p=iso.split('-');return p[2]+'/'+p[1]+'/'+p[0];}
+ 
