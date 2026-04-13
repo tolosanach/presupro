@@ -832,3 +832,176 @@ select { cursor: pointer; }
   font-size: .82rem; color: #b93333;
   text-align: center; margin: 0;
 }
+
+/* ── GOOGLE SIGN-IN BUTTON ────────────────────────────────────────── */
+.btn-google-signin {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%;
+  padding: 13px 20px;
+  background: #fff;
+  border: 1.5px solid #dadce0;
+  border-radius: 50px;
+  font-size: .95rem; font-weight: 600;
+  color: #3c4043;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+.btn-google-signin:hover {
+  background: #f8f9fa;
+  border-color: #bbb;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  transform: translateY(-1px);
+}
+.btn-google-signin:active { transform: translateY(0); }
+.btn-google-signin:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+
+.login-disclaimer {
+  font-size: .75rem; color: var(--text-muted);
+  text-align: center; margin: 0;
+  line-height: 1.5;
+}
+
+/* ── ONBOARDING OVERLAY ───────────────────────────────────────────── */
+.modal-onboarding {
+  max-width: 440px; width: 100%;
+}
+.onboarding-header {
+  text-align: center;
+  padding: 28px 28px 8px;
+}
+.onboarding-icon {
+  width: 54px; height: 54px; border-radius: 14px;
+  background: var(--color-primary);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 1.4rem;
+  margin: 0 auto 14px;
+}
+.onboarding-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem; font-weight: 400;
+  margin-bottom: 6px;
+}
+.onboarding-header p { font-size: .85rem; color: var(--text-muted); }
+.ob-error {
+  font-size: .82rem; color: #b93333; font-weight: 500;
+  background: #fee2e2; padding: 8px 12px; border-radius: 8px;
+  margin: 0;
+}
+.field-hint  { font-size: .75rem; color: var(--text-muted); font-weight: 400; }
+.field-required { color: #b93333; }
+
+/* ── PAYWALL OVERLAY ──────────────────────────────────────────────── */
+.modal-paywall {
+  max-width: 420px; width: 100%;
+  padding: 0; overflow: hidden;
+}
+.paywall-header {
+  text-align: center;
+  background: linear-gradient(135deg, var(--color-secondary), var(--color-primary));
+  color: #fff;
+  padding: 28px 24px 20px;
+}
+.paywall-icon {
+  font-size: 2rem; margin-bottom: 10px;
+  color: #ffd700;
+}
+.paywall-header h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem; font-weight: 400;
+  margin-bottom: 8px;
+}
+.paywall-header p { font-size: .87rem; opacity: .88; line-height: 1.5; }
+.paywall-plan {
+  padding: 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.paywall-plan-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem; color: var(--text-main);
+  letter-spacing: .02em;
+}
+.paywall-plan-price {
+  display: flex; align-items: baseline; gap: 4px;
+}
+.price-amount {
+  font-size: 2.6rem; font-weight: 700;
+  color: var(--color-primary); line-height: 1;
+}
+.price-currency {
+  font-size: 1rem; font-weight: 600;
+  color: var(--text-sub);
+}
+.price-period {
+  font-size: .85rem; color: var(--text-muted);
+}
+.paywall-features {
+  list-style: none; width: 100%;
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: .88rem; color: var(--text-sub);
+}
+.paywall-features li { display: flex; align-items: center; gap: 10px; }
+.paywall-features li i { color: var(--color-primary); width: 16px; }
+.paywall-note {
+  font-size: .75rem; color: var(--text-muted);
+  text-align: center; margin: 0;
+}
+.paywall-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border-color);
+  font-size: .82rem; color: var(--text-muted);
+}
+.paywall-count strong { color: var(--text-main); }
+
+/* MercadoPago button */
+.btn-mercadopago {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%;
+  padding: 14px 20px;
+  background: #009EE3;
+  border: none;
+  border-radius: 50px;
+  font-size: .95rem; font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: 0 4px 14px rgba(0,158,227,.35);
+}
+.btn-mercadopago:hover {
+  background: #0081c4;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0,158,227,.45);
+}
+.btn-mercadopago:active { transform: translateY(0); }
+
+/* ── SUBSCRIPTION STATUS (Admin) ──────────────────────────────────── */
+.account-info-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-surface-2);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  font-size: .88rem;
+}
+.account-info-row i {
+  font-size: 1.4rem; color: #4285F4;
+  flex-shrink: 0;
+}
+.sub-status {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--border-radius-sm);
+  border: 1.5px solid;
+  font-size: .88rem;
+}
+.sub-status--active {
+  background: #f0fdf4; border-color: #bbf7d0; color: #166534;
+}
+.sub-status--active i { font-size: 1.3rem; color: #ffd700; }
+.sub-status--free {
+  background: var(--bg-surface-2); border-color: var(--border-color); color: var(--text-sub);
+}
+.sub-status--free i { font-size: 1.3rem; color: var(--color-primary); }
+.sub-status div strong { display: block; margin-bottom: 2px; }
+.sub-status div span { font-size: .8rem; opacity: .8; }

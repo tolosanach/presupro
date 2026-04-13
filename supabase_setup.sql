@@ -66,8 +66,48 @@ create policy "anon_read_events"
   to anon
   using (true);
 
--- ── 5. VERIFICACIÓN ──────────────────────────────────────────────
+-- ── 5. TABLA DE PERFILES DE USUARIO ────────────────────────────
+-- Se crea automáticamente cuando un usuario se registra con Google
+create table if not exists user_profiles (
+  id                      uuid primary key references auth.users(id) on delete cascade,
+  biz_name                text default '',
+  onboarding_done         boolean default false,
+  subscription_status     text default 'free'
+                          check (subscription_status in ('free','active','expired')),
+  subscription_expires_at timestamptz,
+  mp_subscription_id      text,
+  created_at              timestamptz default now(),
+  updated_at              timestamptz default now()
+);
+
+-- RLS: solo el propio usuario puede leer/escribir su perfil
+alter table user_profiles enable row level security;
+
+create policy "users_own_profile"
+  on user_profiles
+  for all to authenticated
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
+
+-- ── 6. TRIGGER: auto-crear perfil al registrarse ─────────────────
+create or replace function handle_new_user()
+returns trigger language plpgsql security definer as $$
+begin
+  insert into public.user_profiles (id)
+  values (new.id)
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure handle_new_user();
+
+-- ── 7. VERIFICACIÓN ──────────────────────────────────────────────
 -- Después de ejecutar, deberías ver las tablas en Table Editor.
 -- Para confirmar que funcionan, ejecutá:
 --   select * from budgets_shared limit 1;
+--   select * from user_profiles limit 1;
 -- No debería dar error (puede devolver 0 filas, eso es normal).

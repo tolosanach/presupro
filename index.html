@@ -18,7 +18,7 @@
 </head>
 
 <!-- ══════════════════════════════════════════ APP LOGIN SCREEN ══ -->
-<div id="app-login-screen" class="app-login-overlay">
+<div id="app-login-screen" class="app-login-overlay hidden">
   <div class="app-login-box">
     <div class="app-login-logo">
       <img id="login-biz-logo" src="" alt="" style="display:none;max-height:52px;object-fit:contain;" />
@@ -29,22 +29,93 @@
       <p id="login-biz-slogan">Presupuestos profesionales en minutos</p>
     </div>
     <div class="app-login-form">
-      <div class="field">
-        <label>Contraseña</label>
-        <div class="input-pw-wrap">
-          <input type="password" id="app-pw-input" placeholder="••••••••"
-                 onkeydown="if(event.key==='Enter')checkAppLogin()" autocomplete="current-password" />
-          <button class="btn-pw-toggle" onclick="togglePwVisibility('app-pw-input',this)">
-            <i class="fa-solid fa-eye"></i>
-          </button>
-        </div>
-      </div>
-      <button class="btn btn-primary w-full" onclick="checkAppLogin()">
-        <i class="fa-solid fa-arrow-right-to-bracket"></i> Ingresar
+      <button class="btn-google-signin" id="btn-google-signin" onclick="loginWithGoogle()">
+        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Continuar con Google
       </button>
-      <p id="app-login-error" class="app-login-error" style="display:none">
-        Contraseña incorrecta
-      </p>
+      <p class="login-disclaimer">Al continuar aceptás los términos de servicio de PresuPro</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ ONBOARDING OVERLAY ══ -->
+<div id="onboarding-overlay" class="modal-overlay hidden">
+  <div class="modal-box modal-onboarding">
+    <div class="onboarding-header">
+      <div class="onboarding-icon"><i class="fa-solid fa-store"></i></div>
+      <h2>¡Bienvenido a PresuPro!</h2>
+      <p>Completá estos datos para personalizar tus presupuestos</p>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Tu email (Google) <span class="field-hint">— del login</span></label>
+        <input type="email" id="ob-email" readonly class="readonly-field" />
+      </div>
+      <div class="field">
+        <label>Nombre del negocio <span class="field-required">*</span></label>
+        <input type="text" id="ob-biz-name" placeholder="Ej: Mi Empresa SA" maxlength="80"
+               onkeydown="if(event.key==='Enter')completeOnboarding()" />
+      </div>
+      <div class="field">
+        <label>Slogan <span class="field-hint">— opcional</span></label>
+        <input type="text" id="ob-slogan" placeholder="Ej: Soluciones profesionales" maxlength="100" />
+      </div>
+      <div class="field">
+        <label>Teléfono / WhatsApp <span class="field-hint">— opcional</span></label>
+        <input type="tel" id="ob-phone" placeholder="+54 9 2302 000000" />
+      </div>
+      <p id="ob-error" class="ob-error" style="display:none"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary w-full" onclick="completeOnboarding()">
+        <i class="fa-solid fa-rocket"></i> Comenzar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════ PAYWALL OVERLAY ══ -->
+<div id="paywall-overlay" class="modal-overlay hidden">
+  <div class="modal-box modal-paywall">
+    <div class="paywall-header">
+      <div class="paywall-icon"><i class="fa-solid fa-crown"></i></div>
+      <h2>Límite del plan gratuito</h2>
+      <p>Alcanzaste los <strong id="paywall-limit">10</strong> presupuestos del plan Free.<br>
+         Suscribite para crear presupuestos ilimitados.</p>
+    </div>
+    <div class="paywall-plan">
+      <div class="paywall-plan-name">PresuPro Pro</div>
+      <div class="paywall-plan-price">
+        <span class="price-amount">$30</span>
+        <span class="price-currency">USD</span>
+        <span class="price-period">/mes</span>
+      </div>
+      <ul class="paywall-features">
+        <li><i class="fa-solid fa-check"></i> Presupuestos ilimitados</li>
+        <li><i class="fa-solid fa-check"></i> Links compartibles con tracking</li>
+        <li><i class="fa-solid fa-check"></i> Notificaciones de aceptación</li>
+        <li><i class="fa-solid fa-check"></i> Historial completo</li>
+        <li><i class="fa-solid fa-check"></i> Soporte prioritario</li>
+      </ul>
+      <button class="btn-mercadopago" onclick="subscribeMercadoPago()">
+        <svg width="20" height="20" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <circle cx="24" cy="24" r="24" fill="#009EE3"/>
+          <path d="M13 21.5h22M13 26.5h16" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        Suscribirse con MercadoPago
+      </button>
+      <p class="paywall-note">Serás redirigido a MercadoPago para completar el pago</p>
+    </div>
+    <div class="paywall-footer">
+      <button class="btn btn-ghost" onclick="hidePaywall()">
+        <i class="fa-solid fa-arrow-left"></i> Volver
+      </button>
+      <span class="paywall-count">Tenés <strong id="paywall-budget-count">10</strong> presupuestos guardados</span>
     </div>
   </div>
 </div>
@@ -272,29 +343,6 @@
 <!-- ═══════════════════════════════════════════════════ ADMIN MODAL ══ -->
 <div id="admin-overlay" class="modal-overlay hidden">
   <div class="modal-box modal-admin">
-
-    <!-- Login screen -->
-    <div id="admin-login" class="admin-screen">
-      <div class="modal-close-row">
-        <button class="btn-icon" onclick="closeAdminModal()"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="login-hero">
-        <div class="login-icon"><i class="fa-solid fa-lock"></i></div>
-        <h2>Panel de Administración</h2>
-        <p>Ingresá tu contraseña para continuar</p>
-      </div>
-      <div class="login-form">
-        <div class="field">
-          <label>Contraseña</label>
-          <div class="input-pw-wrap">
-            <input type="password" id="admin-pw-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkAdminPw()" />
-            <button class="btn-pw-toggle" onclick="togglePwVisibility('admin-pw-input',this)"><i class="fa-solid fa-eye"></i></button>
-          </div>
-        </div>
-        <button class="btn btn-primary w-full" onclick="checkAdminPw()">Ingresar</button>
-        <p class="pw-hint">Contraseña por defecto: <code>admin123</code></p>
-      </div>
-    </div>
 
     <!-- Admin panel -->
     <div id="admin-panel" class="admin-screen hidden">
@@ -590,35 +638,25 @@
             </button>
           </div>
 
-          <!-- TAB: SECURITY -->
+          <!-- TAB: SECURITY / SUBSCRIPTION -->
           <div id="tab-security" class="admin-tab-content">
-            <h3 class="tab-title">Seguridad</h3>
+            <h3 class="tab-title">Cuenta y Suscripción</h3>
             <div class="settings-section">
-              <h4>Cambiar contraseña de administrador</h4>
-              <div class="field">
-                <label>Contraseña actual</label>
-                <div class="input-pw-wrap">
-                  <input type="password" id="cfg-pw-current" placeholder="••••••••" />
-                  <button class="btn-pw-toggle" onclick="togglePwVisibility('cfg-pw-current',this)"><i class="fa-solid fa-eye"></i></button>
+              <h4>Tu cuenta</h4>
+              <div class="account-info-row">
+                <i class="fa-brands fa-google"></i>
+                <div>
+                  <div id="cfg-user-email" style="font-weight:600">—</div>
+                  <div style="font-size:.8rem;color:var(--text-muted)">Conectado con Google</div>
                 </div>
               </div>
-              <div class="field">
-                <label>Nueva contraseña</label>
-                <div class="input-pw-wrap">
-                  <input type="password" id="cfg-pw-new" placeholder="Mínimo 6 caracteres" />
-                  <button class="btn-pw-toggle" onclick="togglePwVisibility('cfg-pw-new',this)"><i class="fa-solid fa-eye"></i></button>
-                </div>
+            </div>
+            <div class="settings-section mt-20">
+              <h4>Estado de suscripción</h4>
+              <div id="subscription-status-box" class="subscription-status-box">
+                <!-- populated by JS -->
               </div>
-              <div class="field">
-                <label>Confirmar nueva contraseña</label>
-                <div class="input-pw-wrap">
-                  <input type="password" id="cfg-pw-confirm" placeholder="Repetí la contraseña" />
-                  <button class="btn-pw-toggle" onclick="togglePwVisibility('cfg-pw-confirm',this)"><i class="fa-solid fa-eye"></i></button>
-                </div>
-              </div>
-              <button class="btn btn-primary" onclick="changePassword()">
-                <i class="fa-solid fa-key"></i> Cambiar Contraseña
-              </button>
+              <div id="sub-btn-wrap" style="margin-top:16px"></div>
             </div>
           </div>
 
@@ -791,7 +829,9 @@ Válido hasta: {fecha} — {negocio}</div>
   </div>
 </div>
 
-<script src="script.js?v=3"></script>
+<!-- Supabase JS (Auth + Database) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="script.js?v=4"></script>
 
 <!-- ══════════════════════════════════════ CROP MODAL ══ -->
 <div id="crop-overlay" class="modal-overlay hidden">

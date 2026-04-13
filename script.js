@@ -28,7 +28,6 @@ var KEYS = {
   budgetConfig:   _k('budgetcfg'),
   history:        _k('history'),
   lastNumber:     _k('lastnumber'),
-  password:       _k('adminpw'),
   waMessage:      _k('wamessage'),
 };
  
@@ -49,6 +48,52 @@ var SB = {
   key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBka3BzYmNpdmduZHFod2l0cnJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4ODQzNjgsImV4cCI6MjA5MTQ2MDM2OH0.2v3mZfrceP0pyGOCkiZNcq3AT5Pzte1qkJLP_RTNDBE',
 };
 function SB_ENABLED() { return true; }
+
+/* ══ AUTH — Supabase Google OAuth ════════════════════════════════════
+   El usuario se autentica con su cuenta de Google.
+   _currentUser y _currentSession se actualizan en cada cambio de estado.
+   ════════════════════════════════════════════════════════════════ */
+var _sbClient    = null;   /* Supabase JS client (auth + realtime) */
+var _currentUser = null;   /* supabase.auth User object */
+var _currentSession = null;/* supabase.auth Session object */
+
+/* Link de suscripción MercadoPago — crealo en tu dashboard de MP
+   (Suscripciones → Crear plan) y pegá la URL aquí.
+   Ejemplo: 'https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c938084...' */
+var MERCADOPAGO_SUBSCRIPTION_URL = '';
+
+/* Límite de presupuestos en plan gratuito */
+var FREE_BUDGET_LIMIT = 10;
+
+function getSupabaseClient() {
+  if (!_sbClient && window.supabase) {
+    _sbClient = window.supabase.createClient(SB.url, SB.key, {
+      auth: {
+        autoRefreshToken:  true,
+        persistSession:    true,
+        detectSessionInUrl: true,
+      }
+    });
+  }
+  return _sbClient;
+}
+
+function loginWithGoogle() {
+  var sb = getSupabaseClient();
+  if (!sb) { toast('Error: cliente Supabase no disponible', 'error'); return; }
+  var btn = document.getElementById('btn-google-signin');
+  if (btn) { btn.disabled = true; btn.textContent = 'Redirigiendo...'; }
+  sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: 'https://tolosanach.github.io/presupro/',
+      queryParams: { access_type: 'offline', prompt: 'consent' },
+    }
+  }).catch(function(err) {
+    toast('Error al iniciar sesión: ' + err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'Continuar con Google'; }
+  });
+}
  
 /* ── URL BASE DEL VIEWER ─────────────────────────────────────────────
    Una vez que subas los archivos a GitHub Pages o Netlify,
@@ -60,20 +105,22 @@ function SB_ENABLED() { return true; }
    ─────────────────────────────────────────────────────────────────── */
 var VIEWER_BASE_URL = '';   // ← pegar tu URL aquí (sin barra al final)
  
-function sbFetch(method, path, body) {
+function sbFetch(method, path, body, extraHeaders) {
   if (!SB_ENABLED()) {
-    return Promise.reject(new Error('Supabase no configurado — pegá tu anon key en script.js línea 49'));
+    return Promise.reject(new Error('Supabase no configurado'));
   }
-  var key = SB.key;
+  /* Use authenticated session token if available, otherwise anon key */
+  var token = (_currentSession && _currentSession.access_token) ? _currentSession.access_token : SB.key;
+  var headers = Object.assign({
+    'apikey':        SB.key,
+    'Authorization': 'Bearer ' + token,
+    'Content-Type':  'application/json',
+    'Prefer':        method === 'POST' ? 'return=representation' : '',
+  }, extraHeaders || {});
   return fetch(SB.url + '/rest/v1/' + path, {
-    method: method,
-    headers: {
-      'apikey':        key,
-      'Authorization': 'Bearer ' + key,
-      'Content-Type':  'application/json',
-      'Prefer':        method === 'POST' ? 'return=representation' : '',
-    },
-    body: body ? JSON.stringify(body) : undefined,
+    method:  method,
+    headers: headers,
+    body:    body ? JSON.stringify(body) : undefined,
   }).then(function(r) {
     if (!r.ok) return r.text().then(function(t){
       var msg = t; try { var j=JSON.parse(t); msg=j.message||j.hint||t; } catch(e){}
@@ -105,117 +152,169 @@ var STATE = { businessConfig:{}, brandConfig:{}, catalog:[], budgetConfig:{}, hi
  
  
 /* ══ ONBOARDING ══════════════════════════════════════════════════════
-   Se muestra la primera vez que el usuario entra — antes de usar la app.
-   Campos obligatorios: nombre del negocio, email, contraseña nueva.
+   Se muestra la primera vez que el usuario entra con Google.
+   Solo requiere el nombre del negocio (email viene de Google).
    ════════════════════════════════════════════════════════════════ */
 function isOnboardingComplete() {
   var b = STATE.businessConfig;
-  return !!(b.bizName && b.bizName.trim() && b.email && b.email.trim());
+  return !!(b.bizName && b.bizName.trim());
 }
- 
+
 function showOnboarding() {
+  /* Pre-fill email from Google account */
+  if (_currentUser && _currentUser.email) {
+    var emailField = el('ob-email');
+    if (emailField) emailField.value = _currentUser.email;
+  }
   var ob = el('onboarding-overlay');
-  if (ob) ob.classList.remove('hidden');
+  if (ob) {
+    ob.classList.remove('hidden');
+    setTimeout(function() { var f = el('ob-biz-name'); if (f) f.focus(); }, 150);
+  }
 }
- 
+
 function hideOnboarding() {
   var ob = el('onboarding-overlay');
   if (ob) ob.classList.add('hidden');
 }
- 
+
 function completeOnboarding() {
   var bizName = elVal('ob-biz-name').trim();
-  var email   = elVal('ob-email').trim();
-  var pw      = elVal('ob-password').trim();
-  var pw2     = elVal('ob-password2').trim();
- 
-  /* Validate */
+  var slogan  = elVal('ob-slogan').trim();
+  var phone   = elVal('ob-phone').trim();
+
+  /* Validar */
   if (!bizName) { obError('El nombre del negocio es obligatorio'); return; }
-  if (!email || !email.includes('@')) { obError('Ingresá un email válido'); return; }
-  if (!pw || pw.length < 6) { obError('La contraseña debe tener al menos 6 caracteres'); return; }
-  if (pw !== pw2) { obError('Las contraseñas no coinciden'); return; }
- 
-  /* Save business config */
+  var errEl = el('ob-error'); if (errEl) errEl.style.display = 'none';
+
+  /* Guardar configuración del negocio */
   STATE.businessConfig.bizName = bizName;
-  STATE.businessConfig.slogan  = elVal('ob-slogan').trim();
-  STATE.businessConfig.email   = email;
-  STATE.businessConfig.phone   = elVal('ob-phone').trim();
+  STATE.businessConfig.slogan  = slogan;
+  STATE.businessConfig.phone   = phone;
+  if (_currentUser && _currentUser.email) {
+    STATE.businessConfig.email = _currentUser.email;
+  }
   save(KEYS.businessConfig, STATE.businessConfig);
- 
-  /* Save new password */
-  localStorage.setItem(KEYS.password, pw);
-  sessionStorage.setItem(APP_SESSION_KEY, '1');
- 
+
+  /* Guardar en Supabase (async, no bloqueante) */
+  if (_currentUser) {
+    saveOnboardingToSupabase(bizName);
+  }
+
   hideOnboarding();
   applyBrand();
   populateAdminForms();
-  populateLoginScreen();
   toast('¡Bienvenido! Tu cuenta está lista ✓', 'success');
+  initApp();
 }
- 
+
 function obError(msg) {
   var e = el('ob-error');
   if (e) { e.textContent = msg; e.style.display = 'block'; }
 }
+
+function saveOnboardingToSupabase(bizName) {
+  if (!_currentUser) return;
+  sbFetch('POST', 'user_profiles', {
+    id:              _currentUser.id,
+    biz_name:        bizName,
+    onboarding_done: true,
+    updated_at:      new Date().toISOString(),
+  }, { 'Prefer': 'resolution=merge-duplicates,return=minimal' })
+  .catch(function(e) { console.warn('[PP] onboarding save:', e.message); });
+}
  
-/* ══ SESIÓN DE APP ═══════════════════════════════════════════════════
-   La contraseña protege TODO — no solo el panel admin.
-   Se guarda en sessionStorage (se cierra al cerrar la pestaña).
+/* ══ SESIÓN — Google OAuth via Supabase ══════════════════════════════
+   La sesión la maneja Supabase automáticamente con Google OAuth.
+   _currentUser se mantiene actualizado vía onAuthStateChange.
    ════════════════════════════════════════════════════════════════ */
-var APP_SESSION_KEY = 'pp_session_ok';
- 
+
 function isLoggedIn() {
-  return sessionStorage.getItem(APP_SESSION_KEY) === '1';
+  return !!_currentUser;
 }
- 
-function checkAppLogin() {
-  var pw     = document.getElementById('app-pw-input') ?
-               document.getElementById('app-pw-input').value : '';
-  var stored = localStorage.getItem(KEYS.password) || 'admin123';
-  if (pw === stored) {
-    sessionStorage.setItem(APP_SESSION_KEY, '1');
-    document.getElementById('app-login-screen').classList.add('hidden');
-    document.getElementById('app-pw-input').value = '';
-    /* Check onboarding first */
-    if (!isOnboardingComplete()) {
-      showOnboarding();
-    } else {
-      initApp();
-    }
-  } else {
-    var errEl = document.getElementById('app-login-error');
-    if (errEl) { errEl.style.display = 'block'; }
-    var inp = document.getElementById('app-pw-input');
-    if (inp) {
-      inp.style.borderColor = '#b93333';
-      inp.style.boxShadow   = '0 0 0 2px rgba(185,51,51,.15)';
-      setTimeout(function(){ inp.style.borderColor=''; inp.style.boxShadow=''; }, 1500);
-    }
-  }
-}
- 
+
 function appLogout() {
-  sessionStorage.removeItem(APP_SESSION_KEY);
-  /* Show login screen */
-  var ls = document.getElementById('app-login-screen');
-  if (ls) { ls.classList.remove('hidden'); }
-  var inp = document.getElementById('app-pw-input');
-  if (inp) { inp.value = ''; setTimeout(function(){ inp.focus(); }, 100); }
-}
- 
-/* Populate login screen with business branding */
-function populateLoginScreen() {
-  var b = STATE.businessConfig;
-  var nameEl   = document.getElementById('login-biz-name');
-  var slogEl   = document.getElementById('login-biz-slogan');
-  var logoEl   = document.getElementById('login-biz-logo');
-  var iconEl   = document.getElementById('login-biz-icon');
-  if (nameEl)  nameEl.textContent  = b.bizName  || 'PresuPro Studio';
-  if (slogEl)  slogEl.textContent  = b.slogan   || 'Presupuestos profesionales en minutos';
-  if (b.logo && logoEl) {
-    logoEl.src = b.logo; logoEl.style.display = 'block';
-    if (iconEl) iconEl.style.display = 'none';
+  var sb = getSupabaseClient();
+  if (sb) {
+    sb.auth.signOut().then(function() {
+      _currentUser    = null;
+      _currentSession = null;
+      showLoginScreen();
+    }).catch(function() {
+      _currentUser    = null;
+      _currentSession = null;
+      showLoginScreen();
+    });
+  } else {
+    showLoginScreen();
   }
+}
+
+function showLoginScreen() {
+  var ls = el('app-login-screen');
+  if (ls) ls.classList.remove('hidden');
+  /* Restore button state */
+  var btn = el('btn-google-signin');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuar con Google'; }
+}
+
+function hideLoginScreen() {
+  var ls = el('app-login-screen');
+  if (ls) ls.classList.add('hidden');
+}
+
+/* Llamada cuando Supabase confirma la sesión de Google */
+function onAuthSuccess(session) {
+  _currentUser    = session.user;
+  _currentSession = session;
+
+  /* Usar el UID de Supabase como tenant ID (aislamiento por usuario) */
+  updateTenantFromUser(session.user);
+
+  hideLoginScreen();
+
+  /* Verificar onboarding */
+  if (!isOnboardingComplete()) {
+    showOnboarding();
+  } else {
+    /* Cargar estado de suscripción y arrancar */
+    loadSubscriptionFromSupabase();
+    initApp();
+    /* Poblar info de cuenta en admin */
+    var emailEl = el('cfg-user-email');
+    if (emailEl) emailEl.textContent = session.user.email || '';
+  }
+}
+
+/* Migra los datos del tenant aleatorio al UID del usuario si es la primera vez */
+function updateTenantFromUser(user) {
+  if (!user || !user.id) return;
+  var newTenantId = 'user_' + user.id.replace(/-/g, '').slice(0, 16);
+  if (_tenantId === newTenantId) return; /* ya migrado */
+
+  var oldTenantId = _tenantId;
+
+  /* Si ya hay datos bajo el nuevo tenant no migramos (ya hizo onboarding antes) */
+  var alreadyExists = !!localStorage.getItem(newTenantId + '_business');
+  if (!alreadyExists && oldTenantId) {
+    /* Migrar datos del tenant aleatorio al nuevo */
+    ['business','brand','catalog','budgetcfg','history','lastnumber','wamessage'].forEach(function(k) {
+      var val = localStorage.getItem(oldTenantId + '_' + k);
+      if (val) localStorage.setItem(newTenantId + '_' + k, val);
+    });
+  }
+
+  _tenantId = newTenantId;
+  KEYS = {
+    businessConfig: _k('business'),
+    brandConfig:    _k('brand'),
+    catalog:        _k('catalog'),
+    budgetConfig:   _k('budgetcfg'),
+    history:        _k('history'),
+    lastNumber:     _k('lastnumber'),
+    waMessage:      _k('wamessage'),
+  };
+  loadAll(); /* recargar con las claves nuevas */
 }
  
 /* ══ ARRANQUE ═══════════════════════════════════════════════════════ */
@@ -233,31 +332,43 @@ function startAutoRefresh() {
  
 document.addEventListener('DOMContentLoaded', function() {
   loadAll();
-  /* Load Supabase key from localStorage if available */
-  var savedKey = localStorage.getItem('pp_sb_key');
-  if (savedKey && savedKey.length > 20) SB.key = savedKey;
- 
-  /* Populate login screen branding before showing anything */
-  populateLoginScreen();
- 
-  if (!isLoggedIn()) {
-    /* Show login — don't init the app yet */
-    var ls = document.getElementById('app-login-screen');
-    if (ls) { ls.classList.remove('hidden'); }
-    var inp = document.getElementById('app-pw-input');
-    if (inp) setTimeout(function(){ inp.focus(); }, 150);
+
+  /* Verificar retorno de MercadoPago antes de inicializar auth */
+  checkMercadoPagoReturn();
+
+  var sb = getSupabaseClient();
+  if (!sb) {
+    /* Supabase JS no cargó — mostrar error */
+    toast('Error: no se pudo cargar Supabase. Recargá la página.', 'error');
+    showLoginScreen();
     return;
   }
- 
-  /* Already logged in — hide login screen */
-  var ls = document.getElementById('app-login-screen');
-  if (ls) ls.classList.add('hidden');
-  /* Check onboarding */
-  if (!isOnboardingComplete()) {
-    showOnboarding();
-  } else {
-    initApp();
-  }
+
+  /* Escuchar cambios de sesión (incluyendo el callback de OAuth) */
+  sb.auth.onAuthStateChange(function(event, session) {
+    if (event === 'SIGNED_IN' && session) {
+      onAuthSuccess(session);
+    } else if (event === 'SIGNED_OUT') {
+      _currentUser    = null;
+      _currentSession = null;
+      showLoginScreen();
+    } else if (event === 'TOKEN_REFRESHED' && session) {
+      _currentSession = session;
+    }
+  });
+
+  /* Verificar sesión existente al cargar */
+  sb.auth.getSession().then(function(result) {
+    var session = result.data && result.data.session;
+    if (session && session.user) {
+      onAuthSuccess(session);
+    } else {
+      showLoginScreen();
+    }
+  }).catch(function(err) {
+    console.error('[PP] session error:', err);
+    showLoginScreen();
+  });
 });
  
 function initApp() {
@@ -746,6 +857,130 @@ function buildPDFStyles(brand) {
 }
  
  
+/* ══ FREEMIUM / SUSCRIPCIÓN ══════════════════════════════════════════ */
+
+function isSubscribed() {
+  var status  = localStorage.getItem(_tenantId + '_sub_status');
+  var expires = localStorage.getItem(_tenantId + '_sub_expires');
+  if (status === 'active') {
+    if (!expires) return true;
+    return new Date(expires) > new Date();
+  }
+  return false;
+}
+
+function showPaywall() {
+  var lim = el('paywall-limit');
+  if (lim) lim.textContent = FREE_BUDGET_LIMIT;
+  var cnt = el('paywall-budget-count');
+  if (cnt) cnt.textContent = STATE.history.length;
+  var ov = el('paywall-overlay');
+  if (ov) ov.classList.remove('hidden');
+}
+
+function hidePaywall() {
+  var ov = el('paywall-overlay');
+  if (ov) ov.classList.add('hidden');
+}
+
+function subscribeMercadoPago() {
+  if (!MERCADOPAGO_SUBSCRIPTION_URL) {
+    toast('Configurá MERCADOPAGO_SUBSCRIPTION_URL en script.js primero', 'error');
+    return;
+  }
+  var base      = window.location.href.split('?')[0];
+  var returnUrl = base + '?mp_status=approved&mp_uid=' + encodeURIComponent(_tenantId || '');
+  var sep       = MERCADOPAGO_SUBSCRIPTION_URL.indexOf('?') === -1 ? '?' : '&';
+  window.location.href = MERCADOPAGO_SUBSCRIPTION_URL + sep + 'back_url=' + encodeURIComponent(returnUrl);
+}
+
+function checkMercadoPagoReturn() {
+  try {
+    var params    = new URLSearchParams(window.location.search);
+    var mpStatus  = params.get('mp_status')  || params.get('status');
+    var paymentId = params.get('payment_id') || params.get('preapproval_id') || params.get('collection_id');
+    var mpUid     = params.get('mp_uid');
+    var isApproved = mpStatus === 'approved' || mpStatus === 'authorized';
+    if (!isApproved) return;
+
+    var expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 31);
+    var tenantKey = mpUid || _tenantId;
+    localStorage.setItem(tenantKey + '_sub_status',  'active');
+    localStorage.setItem(tenantKey + '_sub_expires', expiresAt.toISOString());
+    if (paymentId) localStorage.setItem(tenantKey + '_sub_mp_id', paymentId);
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    setTimeout(function() {
+      toast('¡Suscripción activada! Presupuestos ilimitados desbloqueados ✓', 'success');
+      hidePaywall();
+      populateSubscriptionStatus();
+    }, 800);
+  } catch(e) { console.warn('[PP] MP return check:', e); }
+}
+
+function saveSubscriptionToSupabase(paymentId, expiresAt) {
+  if (!_currentUser) return;
+  sbFetch('POST', 'user_profiles', {
+    id:                      _currentUser.id,
+    subscription_status:     'active',
+    subscription_expires_at: expiresAt,
+    mp_subscription_id:      paymentId || null,
+    updated_at:              new Date().toISOString(),
+  }, { 'Prefer': 'resolution=merge-duplicates,return=minimal' })
+  .catch(function(e) { console.warn('[PP] subscription save:', e.message); });
+}
+
+function loadSubscriptionFromSupabase() {
+  if (!_currentUser) return;
+  sbFetch('GET', 'user_profiles?id=eq.' + _currentUser.id + '&select=subscription_status,subscription_expires_at,mp_subscription_id')
+    .then(function(rows) {
+      var row = Array.isArray(rows) ? rows[0] : null;
+      if (!row) return;
+      if (row.subscription_status === 'active') {
+        var exp = row.subscription_expires_at;
+        if (!exp || new Date(exp) > new Date()) {
+          localStorage.setItem(_tenantId + '_sub_status',  'active');
+          localStorage.setItem(_tenantId + '_sub_expires', exp || '');
+          if (row.mp_subscription_id) localStorage.setItem(_tenantId + '_sub_mp_id', row.mp_subscription_id);
+        }
+      }
+      populateSubscriptionStatus();
+    })
+    .catch(function(e) { console.warn('[PP] subscription load:', e.message); });
+}
+
+function populateSubscriptionStatus() {
+  var box = el('subscription-status-box');
+  if (!box) return;
+  var sub     = isSubscribed();
+  var expires = localStorage.getItem(_tenantId + '_sub_expires');
+  var expStr  = expires ? new Date(expires).toLocaleDateString('es-AR') : '';
+  if (sub) {
+    box.innerHTML =
+      '<div class="sub-status sub-status--active">' +
+        '<i class="fa-solid fa-crown"></i>' +
+        '<div><strong>Plan Pro — Activo</strong>' +
+        (expStr ? '<br><span>Vence el ' + expStr + '</span>' : '') + '</div>' +
+      '</div>';
+    var bw = el('sub-btn-wrap'); if (bw) bw.innerHTML = '';
+  } else {
+    var remaining = Math.max(0, FREE_BUDGET_LIMIT - STATE.history.length);
+    box.innerHTML =
+      '<div class="sub-status sub-status--free">' +
+        '<i class="fa-solid fa-seedling"></i>' +
+        '<div><strong>Plan Gratuito</strong><br>' +
+        '<span>' + remaining + ' presupuesto' + (remaining !== 1 ? 's' : '') +
+        ' restante' + (remaining !== 1 ? 's' : '') + ' de ' + FREE_BUDGET_LIMIT + '</span></div>' +
+      '</div>';
+    var bw = el('sub-btn-wrap');
+    if (bw) bw.innerHTML =
+      '<button class="btn btn-primary" onclick="closeAdminModal();showPaywall()">' +
+      '<i class="fa-solid fa-crown"></i> Suscribirse — $30 USD/mes</button>';
+  }
+}
+
 /* ══ GUARDAR / HISTORIAL ═════════════════════════════════════════════ */
 /* ══ TRACKING / LINK COMPARTIBLE ════════════════════════════════════ */
  
@@ -979,11 +1214,26 @@ function saveBudget() {
   var data=collectBudgetData();
   if(!data.client.name)   {toast('Completá el nombre del cliente antes de guardar','error');return;}
   if(data.items.length<1) {toast('Agregá al menos un ítem antes de guardar','error');return;}
+
+  /* ── Freemium check ────────────────────────────────────────── */
+  if (STATE.history.length >= FREE_BUDGET_LIMIT && !isSubscribed()) {
+    showPaywall();
+    return;
+  }
+
   bumpBudgetNumber();
   STATE.history.unshift({biz:data.biz,brand:data.brand,cfg:data.cfg,currency:data.currency,client:data.client,meta:data.meta,items:data.items,totals:data.totals,notes:data.notes,savedAt:new Date().toISOString()});
   save(KEYS.history,STATE.history);
   renderHistory();
   toast('Presupuesto guardado \u2713','success');
+
+  /* Mostrar aviso cuando quedan pocos presupuestos gratis */
+  var remaining = FREE_BUDGET_LIMIT - STATE.history.length;
+  if (!isSubscribed() && remaining > 0 && remaining <= 2) {
+    setTimeout(function() {
+      toast('Te queda' + (remaining === 1 ? '' : 'n') + ' ' + remaining + ' presupuesto' + (remaining === 1 ? '' : 's') + ' gratis', 'info');
+    }, 1000);
+  }
 }
 function clearBudget() {
   confirmAction('\u00bfLimpiar presupuesto?','Se borrarán todos los datos del formulario actual.',function(){
@@ -1168,29 +1418,22 @@ function populateWAForm() {
  
 /* ══ ADMIN ═══════════════════════════════════════════════════════════ */
 function openAdminModal() {
-  /* Already authenticated via app login — go straight to panel */
   el('admin-overlay').classList.remove('hidden');
-  el('admin-login').classList.add('hidden');
-  el('admin-panel').classList.remove('hidden');
-  el('admin-overlay').querySelector('.modal-box').classList.add('expanded');
+  var panel = el('admin-panel');
+  if (panel) panel.classList.remove('hidden');
+  var box = el('admin-overlay').querySelector('.modal-box');
+  if (box) box.classList.add('expanded');
   populateAdminForms();
   renderServicesAdmin();
   markClean();
+  /* Populate account info */
+  var emailEl = el('cfg-user-email');
+  if (emailEl && _currentUser) emailEl.textContent = _currentUser.email || '';
+  populateSubscriptionStatus();
   setTimeout(attachDirtyListeners, 100);
 }
 function closeAdminModal(){el('admin-overlay').classList.add('hidden');}
-function checkAdminPw() {
-  var pw=elVal('admin-pw-input'),stored=localStorage.getItem(KEYS.password)||'admin123';
-  if(pw===stored){
-    el('admin-login').classList.add('hidden'); el('admin-panel').classList.remove('hidden');
-    el('admin-overlay').querySelector('.modal-box').classList.add('expanded');
-    populateAdminForms(); renderServicesAdmin();
-  } else {
-    var inp=el('admin-pw-input'); inp.style.borderColor='#e53e3e'; inp.style.boxShadow='0 0 0 3px rgba(229,62,62,.2)';
-    toast('Contraseña incorrecta','error');
-    setTimeout(function(){inp.style.borderColor='';inp.style.boxShadow='';},1500);
-  }
-}
+/* checkAdminPw eliminado — el acceso al admin se protege con Google OAuth */
  
 /* ══ AVISO DE CAMBIOS SIN GUARDAR ═══════════════════════════════════ */
 var _adminDirty = false; /* true cuando hay cambios sin guardar */
@@ -1268,16 +1511,7 @@ function saveBudgetConfig() {
   Object.keys(cm).forEach(function(id){var c=el(id);if(c)bc[cm[id]]=c.checked;});
   save(KEYS.budgetConfig,bc); initBudgetMeta(); updatePreview(); markClean(); markClean(); markClean(); markClean(); markClean(); toast('Configuración guardada \u2713','success');
 }
-function changePassword() {
-  var cur=elVal('cfg-pw-current'),np=elVal('cfg-pw-new'),conf=elVal('cfg-pw-confirm'),stored=localStorage.getItem(KEYS.password)||'admin123';
-  if(cur!==stored){toast('Contraseña actual incorrecta','error');return;}
-  if(np.length<6){toast('Mínimo 6 caracteres','error');return;}
-  if(np!==conf){toast('Las contraseñas no coinciden','error');return;}
-  localStorage.setItem(KEYS.password,np);
-  sessionStorage.setItem(APP_SESSION_KEY,'1'); /* keep session valid with new pw */
-  setVal('cfg-pw-current',''); setVal('cfg-pw-new',''); setVal('cfg-pw-confirm','');
-  toast('Contraseña actualizada \u2713','success');
-}
+/* changePassword eliminado — autenticación via Google OAuth */
  
 /* ══ SERVICIOS ═══════════════════════════════════════════════════════ */
 var editingServiceId=null;
