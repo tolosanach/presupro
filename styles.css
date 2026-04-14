@@ -222,8 +222,9 @@ a { color: var(--text-main); }
 }
 
 /* ── MOBILE SCROLL PILLS ──────────────────────────────────────────── */
-/* Hide pills while admin modal is open */
-.admin-open .mobile-pill { display: none !important; }
+/* Hide pills while admin modal is open or on non-generator views */
+.admin-open .mobile-pill,
+.view-not-generator .mobile-pill { display: none !important; }
 
 .mobile-pill {
   display: none; /* desktop: hidden */
@@ -1097,16 +1098,77 @@ body.admin-open { overflow: hidden; }
 /* ── TOAST PERSISTENTE (notificación de aceptado/rechazado) ─────── */
 .toast-persistent {
   min-width: 280px; max-width: 420px;
-  padding: 14px 18px;
-  display: flex; align-items: center; gap: 10px;
-  border-radius: 50px;
+  padding: 0;
+  display: flex; flex-direction: column;
+  border-radius: 18px;
   font-size: .875rem; font-weight: 600;
   box-shadow: var(--shadow-xl);
   animation: toastIn .3s ease forwards;
   pointer-events: auto;
   cursor: default;
+  overflow: hidden;
 }
-.toast-persistent span { flex: 1; line-height: 1.4; }
+.toast-persistent-body {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px;
+}
+.toast-persistent-body span { flex: 1; line-height: 1.4; }
+.toast-persistent-extra { padding: 0 14px 12px; }
+.toast-wa-btn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 16px; border-radius: 50px;
+  background: #1a7a45; color: #fff;
+  font-size: .82rem; font-weight: 600;
+  text-decoration: none;
+  transition: background .15s;
+}
+.toast-wa-btn:hover { background: #145e35; }
+
+/* ── ONBOARDING TOUR ──────────────────────────────────────────────── */
+#tour-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+}
+#tour-highlight {
+  position: fixed;
+  border-radius: 12px;
+  /* spotlight: dark ring around the element */
+  box-shadow: 0 0 0 9999px rgba(0,0,0,.72);
+  transition: all .35s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+  z-index: 1;
+}
+.tour-tooltip {
+  position: fixed;
+  width: 280px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.25);
+  z-index: 3001;
+  transition: all .35s cubic-bezier(.4,0,.2,1);
+}
+.tour-tooltip p {
+  margin: 0 0 16px;
+  font-size: .92rem; line-height: 1.5;
+  color: var(--text-main);
+}
+.tour-footer {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tour-dots { display: flex; gap: 6px; }
+.tour-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--border-color);
+  transition: background .2s;
+}
+.tour-dot.active { background: var(--text-main); }
+.tour-footer button {
+  padding: 9px 20px; border-radius: 50px;
+  background: var(--text-main); color: var(--bg-app);
+  border: none; font-size: .85rem; font-weight: 700;
+  cursor: pointer; transition: opacity .15s;
+}
+.tour-footer button:hover { opacity: .85; }
 
 /* ── APP LOGIN SCREEN ─────────────────────────────────────────────── */
 .app-login-overlay {

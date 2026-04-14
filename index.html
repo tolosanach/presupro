@@ -931,6 +931,18 @@ Válido hasta: {fecha} — {negocio}</div>
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════ ONBOARDING TOUR ══ -->
+<div id="tour-overlay" class="hidden">
+  <div id="tour-highlight"></div>
+  <div id="tour-tooltip" class="tour-tooltip">
+    <p id="tour-text"></p>
+    <div class="tour-footer">
+      <div class="tour-dots" id="tour-dots"></div>
+      <button id="tour-next-btn" onclick="tourNext()">Siguiente</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════════════════════════════════════ MOBILE SCROLL PILLS ══ -->
 <button id="pill-to-form" class="mobile-pill pill-bottom" aria-label="Ir al formulario">
   Rellená los datos

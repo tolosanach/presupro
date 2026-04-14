@@ -206,6 +206,8 @@ function completeOnboarding() {
   populateAdminForms();
   toast('¡Bienvenido! Tu cuenta está lista ✓', 'success');
   initApp();
+  /* Lanzar tour la primera vez */
+  setTimeout(startTour, 800);
 }
 
 function obError(msg) {
@@ -380,6 +382,8 @@ function initApp() {
   renderHistory();
   populateAdminForms();
   setTimeout(refreshHistoryStatuses, 1500);
+  /* Tour para usuarios que no lo vieron aún */
+  setTimeout(startTour, 1200);
 }
  
 /* ══ PERSISTENCIA ═══════════════════════════════════════════════════ */
@@ -1134,14 +1138,17 @@ function notifyStatusChange(entry, newStatus) {
   var number  = (entry.meta    && entry.meta.number)  || '';
   var total   = (entry.totals  && entry.totals.total) || 0;
   var currency= entry.currency || '$';
- 
+  var phone   = (entry.client  && (entry.client.whatsapp || entry.client.phone)) || '';
+  var waUrl   = phone ? 'https://wa.me/' + phone.replace(/\D/g,'') : null;
+  var waBtn   = waUrl
+    ? '<a href="'+waUrl+'" target="_blank" class="toast-wa-btn"><i class="fa-brands fa-whatsapp"></i> Contactar por WhatsApp</a>'
+    : '';
+
   if (newStatus === 'accepted') {
-    /* Big persistent toast */
     toastPersistent(
       '🎉 ' + client + ' aceptó el presupuesto ' + number + ' · ' + currency + ' ' + fmtNum(total),
-      'success'
+      'success', waBtn
     );
-    /* Browser notification if permitted */
     sendBrowserNotification(
       '✅ Presupuesto aceptado',
       client + ' aceptó ' + number + ' por ' + currency + ' ' + fmtNum(total)
@@ -1149,7 +1156,7 @@ function notifyStatusChange(entry, newStatus) {
   } else if (newStatus === 'rejected') {
     toastPersistent(
       '❌ ' + client + ' rechazó el presupuesto ' + number,
-      'error'
+      'error', waBtn
     );
     sendBrowserNotification(
       '❌ Presupuesto rechazado',
@@ -1159,18 +1166,20 @@ function notifyStatusChange(entry, newStatus) {
 }
  
 /* Toast que no desaparece hasta que el usuario lo cierra */
-function toastPersistent(msg, type) {
+function toastPersistent(msg, type, extraHtml) {
   type = type || 'info';
   var icons = { success:'fa-circle-check', error:'fa-circle-xmark', info:'fa-circle-info' };
   var t = document.createElement('div');
   t.className = 'toast toast-persistent ' + type;
   t.innerHTML =
-    '<i class="fa-solid ' + (icons[type]||icons.info) + '"></i>' +
-    '<span style="flex:1">' + msg + '</span>' +
-    '<button onclick="this.parentNode.remove()" style="background:none;border:none;color:inherit;cursor:pointer;padding:0 0 0 12px;font-size:1rem;opacity:.7">✕</button>';
+    '<div class="toast-persistent-body">' +
+      '<i class="fa-solid ' + (icons[type]||icons.info) + '"></i>' +
+      '<span style="flex:1">' + msg + '</span>' +
+      '<button onclick="this.closest(\'.toast-persistent\').remove()" style="background:none;border:none;color:inherit;cursor:pointer;padding:0 0 0 12px;font-size:1rem;opacity:.7">✕</button>' +
+    '</div>' +
+    (extraHtml ? '<div class="toast-persistent-extra">' + extraHtml + '</div>' : '');
   var c = el('toast-container');
   if (c) c.appendChild(t);
-  /* Auto-dismiss after 12 seconds */
   setTimeout(function() { if (t.parentNode) { t.classList.add('out'); setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 400); } }, 12000);
 }
  
@@ -1527,6 +1536,57 @@ function switchAdminTab(tab,btn) {
   if(titleEl && btn) titleEl.textContent=btn.textContent.trim();
   closeAdminDrawer();
 }
+/* ══ TOUR DE ONBOARDING ══════════════════════════════════════════════ */
+var TOUR_STEPS = [
+  { selector: '[data-view="generator"]', text: '📄 Acá creás nuevos presupuestos para tus clientes. Cargá los ítems, el precio y listo.' },
+  { selector: '[data-view="history"]',   text: '📋 En el Historial guardás y seguís cada presupuesto. Sabés cuando tu cliente lo vio, lo aceptó o rechazó.' },
+  { selector: '.admin-btn',              text: '⚙️ En Admin configurás tu negocio: logo, colores, catálogo de productos y más.' }
+];
+var _tourStep = 0;
+
+function startTour() {
+  if (localStorage.getItem(_tenantId + '_tour_done')) return;
+  _tourStep = 0;
+  el('tour-overlay').classList.remove('hidden');
+  showTourStep(0);
+}
+function showTourStep(step) {
+  var s = TOUR_STEPS[step];
+  var target = document.querySelector(s.selector);
+  el('tour-text').textContent = s.text;
+  /* Dots */
+  el('tour-dots').innerHTML = TOUR_STEPS.map(function(_,i){
+    return '<span class="tour-dot'+(i===step?' active':'')+'"></span>';
+  }).join('');
+  /* Next / finish label */
+  el('tour-next-btn').textContent = step < TOUR_STEPS.length-1 ? 'Siguiente →' : '¡Empezar! ✓';
+  /* Position highlight */
+  if (target) {
+    var r = target.getBoundingClientRect();
+    var pad = 6;
+    var h = el('tour-highlight');
+    h.style.top    = (r.top - pad) + 'px';
+    h.style.left   = (r.left - pad) + 'px';
+    h.style.width  = (r.width + pad*2) + 'px';
+    h.style.height = (r.height + pad*2) + 'px';
+    /* Tooltip: below target, left-aligned but clamped */
+    var tt = el('tour-tooltip');
+    var ttW = 280;
+    var tipLeft = Math.max(12, Math.min(r.left, window.innerWidth - ttW - 12));
+    tt.style.top  = (r.bottom + 14) + 'px';
+    tt.style.left = tipLeft + 'px';
+  }
+}
+function tourNext() {
+  _tourStep++;
+  if (_tourStep >= TOUR_STEPS.length) {
+    el('tour-overlay').classList.add('hidden');
+    localStorage.setItem(_tenantId + '_tour_done', '1');
+  } else {
+    showTourStep(_tourStep);
+  }
+}
+
 function toggleAdminDrawer() {
   var sidebar=el('admin-sidebar'), backdrop=el('admin-drawer-backdrop');
   var isOpen=sidebar&&sidebar.classList.contains('drawer-open');
@@ -1660,6 +1720,8 @@ function switchView(name){
   var v=el('view-'+name);if(v)v.classList.add('active');
   var b=document.querySelector('[data-view="'+name+'"]');if(b)b.classList.add('active');
   if(name==='history'){renderHistory();refreshHistoryStatuses();requestNotificationPermission();}
+  /* Hide scroll pills on non-generator views */
+  document.body.classList.toggle('view-not-generator', name !== 'generator');
 }
 function togglePwVisibility(inputId,btn){var inp=el(inputId);if(!inp)return;var isText=inp.type==='text';inp.type=isText?'password':'text';btn.innerHTML=isText?'<i class="fa-solid fa-eye"></i>':'<i class="fa-solid fa-eye-slash"></i>';}
  
@@ -1932,68 +1994,24 @@ function getTenantId() {
  
 /* Share a budget: uploads to Supabase and copies link */
 function shareBudget(idx) {
-  /* idx === undefined means current form, else from history */
-  var data;
   if (idx === undefined) {
-    data = collectBudgetData();
-    if (!data.client.name)    { toast('Completá el nombre del cliente antes de compartir', 'error'); return; }
-    if (!data.items.length)   { toast('Agregá al menos un ítem antes de compartir', 'error'); return; }
-  } else {
-    data = STATE.history[idx];
-    if (!data) return;
-  }
- 
-  /* Check Supabase is configured */
-  if (SB.url.indexOf('TU-PROYECTO') !== -1) {
-    toast('Configurá la anon key de Supabase en script.js primero', 'error'); return;
-  }
- 
-  toast('Generando link...', 'info');
- 
-  var tenantId = getTenantId();
-  var meta = data.meta || {};
- 
-  /* Check if already shared (has a shareId saved) */
-  var existingShareId = data.shareId || null;
-  if (existingShareId) {
-    /* Update existing record */
-    sbFetch('PATCH', 'shared_budgets', 'id=eq.' + existingShareId, { budget_data: data })
-      .then(function() { copyShareLink(existingShareId, data); })
-      .catch(function() { toast('Error al actualizar el link compartido', 'error'); });
+    /* Called from form — validate, save to history first, then generateLink(0) */
+    var data = collectBudgetData();
+    if (!data.client.name)  { toast('Completá el nombre del cliente antes de compartir', 'error'); return; }
+    if (!data.items.length) { toast('Agregá al menos un ítem antes de compartir', 'error'); return; }
+    /* Silent save (bypass freemium toast, just add to history) */
+    bumpBudgetNumber();
+    STATE.history.unshift({
+      biz:data.biz, brand:data.brand, cfg:data.cfg, currency:data.currency,
+      client:data.client, meta:data.meta, items:data.items, totals:data.totals,
+      notes:data.notes, savedAt:new Date().toISOString()
+    });
+    save(KEYS.history, STATE.history);
+    generateLink(0);
     return;
   }
- 
-  /* Calculate expiry: validity date + 30 days buffer */
-  var expiresAt = null;
-  if (meta.valid) {
-    var exp = new Date(meta.valid);
-    exp.setDate(exp.getDate() + 30);
-    expiresAt = exp.toISOString();
-  }
- 
-  sbFetch('POST', 'shared_budgets', '', {
-    tenant_id:     tenantId,
-    budget_number: meta.number || '',
-    budget_data:   data,
-    status:        'sent',
-    expires_at:    expiresAt,
-  }).then(function(rows) {
-    var row = Array.isArray(rows) ? rows[0] : rows;
-    if (!row || !row.id) { toast('Error al crear el link', 'error'); return; }
- 
-    /* Save shareId back to history entry */
-    if (idx !== undefined) {
-      STATE.history[idx].shareId = row.id;
-      STATE.history[idx].shareStatus = 'sent';
-      save(KEYS.history, STATE.history);
-      renderHistory();
-    }
- 
-    copyShareLink(row.id, data);
-  }).catch(function(e) {
-    console.error(e);
-    toast('No se pudo conectar con Supabase. Verificá la configuración.', 'error');
-  });
+  /* Called from history — delegate directly to generateLink */
+  generateLink(idx);
 }
  
 function copyShareLink(shareId, data) {
