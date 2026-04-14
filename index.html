@@ -82,41 +82,94 @@
 <!-- ══════════════════════════════════════ PAYWALL OVERLAY ══ -->
 <div id="paywall-overlay" class="modal-overlay hidden">
   <div class="modal-box modal-paywall">
+
+    <!-- Header con gradiente premium -->
     <div class="paywall-header">
-      <div class="paywall-icon"><i class="fa-solid fa-crown"></i></div>
-      <h2>Límite del plan gratuito</h2>
-      <p>Alcanzaste los <strong id="paywall-limit">10</strong> presupuestos del plan Free.<br>
-         Suscribite para crear presupuestos ilimitados.</p>
-    </div>
-    <div class="paywall-plan">
-      <div class="paywall-plan-name">PresuPro Pro</div>
-      <div class="paywall-plan-price">
-        <span class="price-amount">$30</span>
-        <span class="price-currency">USD</span>
-        <span class="price-period">/mes</span>
+      <div class="paywall-social-proof">
+        <div class="paywall-avatars" aria-hidden="true">
+          <span class="paywall-avatar">J</span>
+          <span class="paywall-avatar">M</span>
+          <span class="paywall-avatar">R</span>
+          <span class="paywall-avatar">A</span>
+        </div>
+        <span>Usado por +200 negocios en Argentina</span>
       </div>
+      <div class="paywall-icon"><i class="fa-solid fa-crown"></i></div>
+      <h2>Presupuestos que<br>cierran ventas</h2>
+      <p>Ya usaste tus <strong id="paywall-limit">10</strong> presupuestos gratuitos.<br>
+         Pasate a Pro y nunca pierdas un cliente por falta de herramientas.</p>
+    </div>
+
+    <!-- Cuerpo del plan -->
+    <div class="paywall-plan">
+
+      <!-- Badge + nombre -->
+      <div class="paywall-plan-header">
+        <span class="paywall-badge-popular">★ Más popular</span>
+        <div class="paywall-plan-name">PresuPro Pro</div>
+      </div>
+
+      <!-- Precio -->
+      <div class="paywall-plan-price">
+        <div class="paywall-price-main">
+          <span class="price-ars">$40.000</span>
+          <span class="price-ars-label">ARS/mes</span>
+        </div>
+        <div class="price-usd-tag">≈ USD 30/mes</div>
+      </div>
+
+      <!-- Hook de valor -->
+      <div class="paywall-value-hook">
+        <i class="fa-solid fa-bolt"></i>
+        Cerrás 1 venta extra y se paga solo
+      </div>
+
+      <!-- Features -->
       <ul class="paywall-features">
-        <li><i class="fa-solid fa-check"></i> Presupuestos ilimitados</li>
-        <li><i class="fa-solid fa-check"></i> Links compartibles con tracking</li>
-        <li><i class="fa-solid fa-check"></i> Notificaciones de aceptación</li>
-        <li><i class="fa-solid fa-check"></i> Historial completo</li>
-        <li><i class="fa-solid fa-check"></i> Soporte prioritario</li>
+        <li><i class="fa-solid fa-infinity"></i> Presupuestos <strong>ilimitados</strong></li>
+        <li><i class="fa-solid fa-link"></i> Links compartibles con tracking de apertura</li>
+        <li><i class="fa-solid fa-bell"></i> Notificaciones cuando el cliente acepta</li>
+        <li><i class="fa-solid fa-clock-rotate-left"></i> Historial completo con búsqueda</li>
+        <li><i class="fa-solid fa-headset"></i> Soporte prioritario por WhatsApp</li>
       </ul>
+
+      <!-- Testimonio -->
+      <blockquote class="paywall-testimonial">
+        <p>"En el primer mes cerré 3 trabajos que antes se iban a la competencia. El cliente ve el presupuesto y confía."</p>
+        <cite>— Juan M., electricista · CABA</cite>
+      </blockquote>
+
+      <!-- CTA -->
       <button class="btn-mercadopago" onclick="subscribeMercadoPago()">
         <svg width="20" height="20" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-          <circle cx="24" cy="24" r="24" fill="#009EE3"/>
+          <circle cx="24" cy="24" r="24" fill="#fff" fill-opacity=".25"/>
           <path d="M13 21.5h22M13 26.5h16" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
         </svg>
-        Suscribirse con MercadoPago
+        Quiero presupuestos ilimitados
+        <i class="fa-solid fa-arrow-right" style="margin-left:4px;font-size:.85em;"></i>
       </button>
-      <p class="paywall-note">Serás redirigido a MercadoPago para completar el pago</p>
+
+      <!-- Urgencia + seguridad -->
+      <div class="paywall-urgency">
+        <i class="fa-solid fa-fire-flame-curved"></i>
+        Precio de lanzamiento · cancelás cuando quieras
+      </div>
+      <p class="paywall-note">
+        <i class="fa-solid fa-lock" style="font-size:.8em;"></i>
+        Pago 100% seguro con MercadoPago
+      </p>
     </div>
+
+    <!-- Footer -->
     <div class="paywall-footer">
       <button class="btn btn-ghost" onclick="hidePaywall()">
-        <i class="fa-solid fa-arrow-left"></i> Volver
+        <i class="fa-solid fa-arrow-left"></i> Ahora no
       </button>
-      <span class="paywall-count">Tenés <strong id="paywall-budget-count">10</strong> presupuestos guardados</span>
+      <span class="paywall-count">
+        <strong id="paywall-budget-count">10</strong> presupuestos guardados
+      </span>
     </div>
+
   </div>
 </div>
 

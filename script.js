@@ -60,7 +60,7 @@ var _currentSession = null;/* supabase.auth Session object */
 /* Link de suscripción MercadoPago — crealo en tu dashboard de MP
    (Suscripciones → Crear plan) y pegá la URL aquí.
    Ejemplo: 'https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=2c938084...' */
-var MERCADOPAGO_SUBSCRIPTION_URL = '';
+var MERCADOPAGO_SUBSCRIPTION_URL = 'https://www.mercadopago.com.ar/subscriptions/checkout?preapproval_plan_id=70261fab7ead48ef960b444d04689bfc';
 
 /* Límite de presupuestos en plan gratuito */
 var FREE_BUDGET_LIMIT = 10;
