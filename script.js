@@ -482,28 +482,63 @@ function bumpBudgetNumber() {
  
 /* ══ ÍTEMS ═══════════════════════════════════════════════════════════ */
 var itemCounter=0;
+var QTY_ITEM_H=36, QTY_MIN=1, QTY_MAX=99;
 function addItem(prefill) {
   var id=++itemCounter, container=el('items-container'); if(!container) return;
   var acts=STATE.catalog.filter(function(s){return s.active;}), cur=STATE.budgetConfig.currency||'$';
   var opts=acts.map(function(s){return '<option value="'+s.id+'">'+escHtml(s.name)+' ('+escHtml(s.unit)+')</option>';}).join('');
   var row=document.createElement('div'); row.className='item-row'; row.id='item-row-'+id;
   row.innerHTML=
-    '<div class="field"><label>Servicio / Descripción</label>'+
+    '<div class="field item-field-svc"><label>Servicio / Descripción</label>'+
     '<select class="item-service-select" id="item-svc-'+id+'" onchange="onServiceSelect('+id+')">'+
     '<option value="">— Seleccioná o escribí —</option>'+opts+'<option value="__custom">Personalizado...</option></select>'+
     '<input type="text" id="item-name-'+id+'" placeholder="Descripción del ítem" style="margin-top:6px;display:none" oninput="calcItemSubtotal('+id+');updatePreview()"/></div>'+
-    '<div class="field"><label>Cant.</label><input type="number" id="item-qty-'+id+'" value="1" min="0.01" step="0.01" oninput="calcItemSubtotal('+id+');updatePreview()"/></div>'+
-    '<div class="field"><label>Precio unit. ('+cur+')</label><input type="number" id="item-price-'+id+'" value="" min="0" step="0.01" placeholder="0.00" oninput="calcItemSubtotal('+id+');updatePreview()"/></div>'+
+    /* qty: drum picker on mobile, number input on desktop */
+    '<div class="field item-field-qty"><label>Cant.</label>'+
+      '<div class="qty-drum-wrap" id="item-drum-'+id+'">'+
+        '<div class="qty-drum-fade qty-drum-fade--top"></div>'+
+        '<div class="qty-drum-scroll" id="item-drum-scroll-'+id+'"></div>'+
+        '<div class="qty-drum-fade qty-drum-fade--bot"></div>'+
+        '<div class="qty-drum-line"></div>'+
+      '</div>'+
+      '<input type="number" id="item-qty-'+id+'" class="qty-input-desktop" value="1" min="0.01" step="0.01" oninput="calcItemSubtotal('+id+');updatePreview()"/>'+
+    '</div>'+
+    '<div class="field item-field-price"><label>Precio unit. ('+cur+')</label><input type="number" id="item-price-'+id+'" value="" min="0" step="0.01" placeholder="0.00" oninput="calcItemSubtotal('+id+');updatePreview()"/></div>'+
     '<div class="field item-subtotal" id="item-sub-'+id+'">'+cur+' 0,00</div>'+
     '<button class="item-delete" onclick="removeItem('+id+')" title="Eliminar"><i class="fa-solid fa-trash-can"></i></button>';
   container.appendChild(row);
+  var qtyVal=1;
   if(prefill){
     if(prefill.svcId&&prefill.svcId!=='__custom'&&prefill.svcId!==''){el('item-svc-'+id).value=prefill.svcId;}
     else if(prefill.name){el('item-svc-'+id).value='__custom';el('item-name-'+id).style.display='block';el('item-name-'+id).value=prefill.name;}
-    if(prefill.qty)   el('item-qty-'+id).value=prefill.qty;
+    if(prefill.qty){el('item-qty-'+id).value=prefill.qty; qtyVal=parseFloat(prefill.qty)||1;}
     if(prefill.price) el('item-price-'+id).value=prefill.price;
     calcItemSubtotal(id);
   }
+  initQtyDrum(id, qtyVal);
+}
+function initQtyDrum(id, initialVal) {
+  var scroll=el('item-drum-scroll-'+id); if(!scroll) return;
+  var val=Math.max(QTY_MIN, Math.min(QTY_MAX, Math.round(initialVal)||1));
+  /* Build: top pad + cells + bottom pad */
+  var html='<div class="qty-drum-pad"></div>';
+  for(var n=QTY_MIN;n<=QTY_MAX;n++) html+='<div class="qty-drum-cell">'+n+'</div>';
+  html+='<div class="qty-drum-pad"></div>';
+  scroll.innerHTML=html;
+  /* Set initial scroll position (synchronously after innerHTML) */
+  scroll.scrollTop=(val-QTY_MIN)*QTY_ITEM_H;
+  /* Scroll → haptic + sync hidden input */
+  var lastVal=val, settleTimer;
+  scroll.addEventListener('scroll',function(){
+    clearTimeout(settleTimer);
+    var v=Math.round(scroll.scrollTop/QTY_ITEM_H)+QTY_MIN;
+    v=Math.max(QTY_MIN,Math.min(QTY_MAX,v));
+    if(v!==lastVal){ lastVal=v; if(navigator.vibrate) navigator.vibrate(8); }
+    settleTimer=setTimeout(function(){
+      el('item-qty-'+id).value=lastVal;
+      calcItemSubtotal(id); updatePreview();
+    },150);
+  },{passive:true});
 }
 function onServiceSelect(id) {
   var sv=el('item-svc-'+id),nm=el('item-name-'+id),pr=el('item-price-'+id); if(!sv) return;
