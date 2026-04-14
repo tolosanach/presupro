@@ -1515,6 +1515,25 @@ function switchAdminTab(tab,btn) {
   if(tab==='services')      renderServicesAdmin();
   if(tab==='whatsapp')      populateWAForm();
   if(tab==='integrations')  populateIntegrationsForm();
+  /* Mobile: update title and close drawer */
+  var titleEl=el('admin-tab-title-mobile');
+  if(titleEl && btn) titleEl.textContent=btn.textContent.trim();
+  closeAdminDrawer();
+}
+function toggleAdminDrawer() {
+  var sidebar=el('admin-sidebar'), backdrop=el('admin-drawer-backdrop');
+  var isOpen=sidebar&&sidebar.classList.contains('drawer-open');
+  if(isOpen){ closeAdminDrawer(); } else { openAdminDrawer(); }
+}
+function openAdminDrawer() {
+  var s=el('admin-sidebar'),b=el('admin-drawer-backdrop');
+  if(s) s.classList.add('drawer-open');
+  if(b) b.classList.add('active');
+}
+function closeAdminDrawer() {
+  var s=el('admin-sidebar'),b=el('admin-drawer-backdrop');
+  if(s) s.classList.remove('drawer-open');
+  if(b) b.classList.remove('active');
 }
 function populateAdminForms() {
   var b=STATE.businessConfig,br=STATE.brandConfig,bc=STATE.budgetConfig;

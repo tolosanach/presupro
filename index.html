@@ -405,8 +405,22 @@
     <div id="admin-panel" class="admin-screen hidden">
       <div class="admin-panel-layout">
 
+        <!-- Mobile: top bar with hamburger + current tab title + close -->
+        <div class="admin-mobile-topbar">
+          <button class="admin-menu-btn" onclick="toggleAdminDrawer()" aria-label="Menú">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <span id="admin-tab-title-mobile" class="admin-mobile-title">Identidad</span>
+          <button class="admin-close-btn" onclick="closeAdminModal()" aria-label="Cerrar">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <!-- Mobile backdrop for drawer -->
+        <div class="admin-drawer-backdrop" id="admin-drawer-backdrop" onclick="closeAdminDrawer()"></div>
+
         <!-- Sidebar tabs -->
-        <nav class="admin-sidebar">
+        <nav class="admin-sidebar" id="admin-sidebar">
           <div class="admin-sidebar-header">
             <i class="fa-solid fa-sliders"></i>
             <span>Administración</span>
