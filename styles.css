@@ -892,11 +892,11 @@ select { cursor: pointer; }
 .field-required { color: #b93333; }
 
 /* ── PAYWALL OVERLAY ──────────────────────────────────────────────── */
-.modal-paywall {
+.modal-box.modal-paywall {
   max-width: 420px; width: 100%;
   padding: 0; overflow: hidden;
   border-radius: 24px;
-  background: #0d1117;
+  background: #0d1117 !important;
   box-shadow: 0 32px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.07);
   color: #fff;
 }
