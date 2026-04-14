@@ -403,12 +403,68 @@ select { cursor: pointer; }
 }
 .btn-add-item:hover { border-color: var(--text-main); border-style: solid; color: var(--text-main); }
 
+/* ── PCT STEPPER (+/- para descuento/recargo) ─────────────────────── */
+.pct-stepper {
+  display: flex; align-items: stretch;
+  border: 1.5px solid var(--border-color); border-radius: 10px; overflow: hidden;
+}
+.pct-stepper input[type=number] {
+  flex: 1; border: none; outline: none;
+  text-align: center; padding: 10px 4px;
+  background: transparent; color: var(--text-main);
+  font-size: .95rem; font-weight: 600;
+  -moz-appearance: textfield; appearance: textfield;
+}
+.pct-stepper input[type=number]::-webkit-outer-spin-button,
+.pct-stepper input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pct-btn {
+  width: 40px; border: none; background: var(--bg-surface-2);
+  color: var(--text-main); font-size: 1.25rem; font-weight: 400;
+  cursor: pointer; flex-shrink: 0;
+  display: none; /* desktop: hidden — just show the plain input */
+  align-items: center; justify-content: center;
+  transition: background var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.pct-btn:active { background: var(--border-color); }
+/* Show + hide on desktop: make stepper transparent */
+@media (min-width: 701px) {
+  .pct-stepper {
+    border-color: transparent; border-radius: 0; overflow: visible;
+  }
+  .pct-stepper input[type=number] {
+    border: 1.5px solid var(--border-color); border-radius: 10px; padding: 10px 12px;
+    text-align: left; font-weight: 400;
+  }
+}
+@media (max-width: 700px) {
+  .pct-btn { display: flex; }
+}
+
 /* ── ACTION BAR ───────────────────────────────────────────────────── */
 .action-bar {
   display: flex; gap: 7px; flex-wrap: wrap;
   padding: 14px 0 6px;
 }
 .action-bar .btn { flex: 1; min-width: 100px; }
+@media (max-width: 700px) {
+  .action-bar {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 8px;
+  }
+  /* Guardar: takes the wide first column */
+  .action-save  { grid-column: 1; }
+  /* Compartir, WA, Limpiar: icon-only compact */
+  .action-share,
+  .action-wa,
+  .action-clear { min-width: 0; padding: 9px 13px; }
+  .action-share span,
+  .action-wa span,
+  .action-clear span { display: none; }
+  /* Exportar PDF: spans full width */
+  .action-pdf { grid-column: 1 / -1; }
+}
 
 /* ── ITEM ROW ─────────────────────────────────────────────────────── */
 .item-row {

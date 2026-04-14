@@ -571,6 +571,14 @@ function getItems() {
   return result;
 }
  
+/* ── Stepper +/- para campos porcentaje ─────────────────────────── */
+function stepPct(id, delta) {
+  var inp=el(id); if(!inp) return;
+  var v=Math.min(100,Math.max(0,(parseFloat(inp.value)||0)+delta));
+  inp.value=v; updatePreview();
+  if(navigator.vibrate) navigator.vibrate(8);
+}
+
 /* ══ CÁLCULOS ════════════════════════════════════════════════════════ */
 function calcTotals(items) {
   var sub=items.reduce(function(a,i){return a+i.subtotal;},0);
