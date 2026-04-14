@@ -707,7 +707,7 @@ select { cursor: pointer; }
 .history-count { font-size:.78rem; color:var(--text-muted); font-weight:500; }
 
 /* Lock body scroll when any modal is open */
-body.admin-open { overflow: hidden; touch-action: none; }
+body.admin-open { overflow: hidden; }
 
 /* ── ADMIN MODAL ──────────────────────────────────────────────────── */
 .modal-overlay {
