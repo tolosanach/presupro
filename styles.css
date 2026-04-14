@@ -489,11 +489,13 @@ select { cursor: pointer; }
     border-radius: 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,.06);
   }
-  /* Service left, drum right — same row */
-  .item-field-svc { grid-column: 1; grid-row: 1; }
-  .item-field-qty { grid-column: 2; grid-row: 1; align-self: end; }
-  /* Price full width below */
-  .item-field-price { grid-column: 1 / -1; grid-row: 2; }
+  /* Service top-left, drum right spanning both rows */
+  .item-field-svc   { grid-column: 1; grid-row: 1; }
+  .item-field-qty   { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; }
+  /* Price bottom-left */
+  .item-field-price { grid-column: 1; grid-row: 2; }
+  /* Drum fills full height of its cell */
+  .item-field-qty .qty-drum-wrap { height: 100%; }
   /* Subtotal + delete on same row */
   .item-subtotal { grid-column: 1; grid-row: 3; align-self: center; text-align: left; padding-bottom: 0; font-size: 1rem; }
   .item-delete   { grid-column: 2; grid-row: 3; width: 36px; height: 36px; border-radius: 50%; align-self: center; justify-self: end; }
