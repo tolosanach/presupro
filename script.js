@@ -1462,6 +1462,7 @@ function populateWAForm() {
 /* ══ ADMIN ═══════════════════════════════════════════════════════════ */
 function openAdminModal() {
   el('admin-overlay').classList.remove('hidden');
+  document.body.classList.add('admin-open'); /* hide mobile pills */
   var panel = el('admin-panel');
   if (panel) panel.classList.remove('hidden');
   var box = el('admin-overlay').querySelector('.modal-box');
@@ -1474,8 +1475,14 @@ function openAdminModal() {
   if (emailEl && _currentUser) emailEl.textContent = _currentUser.email || '';
   populateSubscriptionStatus();
   setTimeout(attachDirtyListeners, 100);
+  /* Mobile: open drawer by default so tabs are visible */
+  if (window.matchMedia('(max-width: 768px)').matches) openAdminDrawer();
 }
-function closeAdminModal(){el('admin-overlay').classList.add('hidden');}
+function closeAdminModal(){
+  el('admin-overlay').classList.add('hidden');
+  document.body.classList.remove('admin-open');
+  closeAdminDrawer();
+}
 /* checkAdminPw eliminado — el acceso al admin se protege con Google OAuth */
  
 /* ══ AVISO DE CAMBIOS SIN GUARDAR ═══════════════════════════════════ */

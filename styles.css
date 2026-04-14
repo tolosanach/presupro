@@ -222,6 +222,9 @@ a { color: var(--text-main); }
 }
 
 /* ── MOBILE SCROLL PILLS ──────────────────────────────────────────── */
+/* Hide pills while admin modal is open */
+.admin-open .mobile-pill { display: none !important; }
+
 .mobile-pill {
   display: none; /* desktop: hidden */
 }
