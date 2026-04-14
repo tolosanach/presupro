@@ -509,12 +509,12 @@ select { cursor: pointer; }
 }
 .item-delete {
   width: 32px; height: 32px; border-radius: 50%;
-  border: 1.5px solid var(--border-color);
-  background: transparent; color: var(--text-muted);
+  border: 1.5px solid #fca5a5;
+  background: #ffffff; color: #dc2626;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   font-size: .75rem; transition: all var(--transition); align-self: end;
 }
-.item-delete:hover { border-color: #b93333; color: #b93333; background: #fff5f5; }
+.item-delete:hover { border-color: #dc2626; background: #fee2e2; }
 /* ── QTY DRUM PICKER ──────────────────────────────────────────────── */
 .qty-drum-wrap {
   position: relative;
