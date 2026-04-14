@@ -174,6 +174,14 @@ a { color: var(--text-main); }
 
 /* ── MOBILE: preview full-screen + scroll pills ───────────────────── */
 @media (max-width: 768px) {
+  /* Header: compact, no text labels in nav */
+  .app-header { padding: 0 12px; }
+  .biz-slogan  { display: none; }
+  .biz-name    { font-size: .85rem; }
+  .nav-btn span { display: none; }   /* hide text labels, keep icons */
+  .nav-btn { padding: 8px 10px; gap: 0; }
+  .header-nav { gap: 2px; }
+
   /* Remove padding so preview goes edge-to-edge */
   #view-generator.view { padding: 0; }
 
