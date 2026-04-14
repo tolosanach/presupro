@@ -845,7 +845,8 @@ body.admin-open { overflow: hidden; }
     height: auto;
     flex-direction: column;
     position: relative;
-    overflow: hidden;
+    overflow-x: clip;  /* clip sidebar sin afectar el scroll vertical */
+    overflow-y: visible;
   }
 
   /* Mobile top bar */
@@ -893,12 +894,16 @@ body.admin-open { overflow: hidden; }
   /* Content fills remaining height — scroll propio */
   .admin-content {
     flex: 1;
-    min-height: 0;      /* crítico: permite que flex item se encoja */
-    overflow-y: scroll; /* scroll en lugar de auto, más confiable en iOS */
-    padding: 20px 18px 40px;
+    min-height: 0;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    padding: 20px 20px 60px;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
+  /* Secciones con más aire en mobile */
+  .tab-title { padding-left: 2px; }
+  .settings-section h4 { padding-left: 2px; }
   /* Tab title smaller on mobile */
   .tab-title { font-size: 1.1rem; margin-bottom: 14px; }
 }
