@@ -812,6 +812,13 @@ body.admin-open { overflow: hidden; }
 .admin-drawer-backdrop { display: none; }
 
 @media (max-width: 768px) {
+  /* Overlay: sin padding ni centrado para que el modal llene la pantalla */
+  body.admin-open .modal-overlay {
+    padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
   /* Full screen */
   .modal-admin.expanded {
     max-width: 100% !important;
@@ -820,11 +827,22 @@ body.admin-open { overflow: hidden; }
     height: 100% !important;
     border-radius: 0 !important;
     margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  /* admin-screen debe crecer para llenar el modal */
+  .admin-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
   }
   .admin-panel-layout {
+    flex: 1;
     min-height: 0;
     max-height: none;
-    height: 100%;
+    height: auto;
     flex-direction: column;
     position: relative;
     overflow: hidden;
@@ -872,13 +890,14 @@ body.admin-open { overflow: hidden; }
   }
   .admin-drawer-backdrop.active { opacity: 1; pointer-events: all; }
 
-  /* Content fills remaining height */
+  /* Content fills remaining height — scroll propio */
   .admin-content {
-    flex: 1; overflow-y: auto;
+    flex: 1;
+    min-height: 0;      /* crítico: permite que flex item se encoja */
+    overflow-y: scroll; /* scroll en lugar de auto, más confiable en iOS */
     padding: 20px 18px 40px;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    touch-action: pan-y;
   }
   /* Tab title smaller on mobile */
   .tab-title { font-size: 1.1rem; margin-bottom: 14px; }
