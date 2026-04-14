@@ -174,8 +174,26 @@ a { color: var(--text-main); }
 
 /* ── MOBILE: preview full-screen + scroll pills ───────────────────── */
 @media (max-width: 768px) {
+  /* Theme: white bg, gray cards */
+  :root {
+    --bg-app:       #ffffff;
+    --bg-surface:   #f2f3f5;
+    --bg-surface-2: #e8e9eb;
+    --bg-muted:     #e0e1e3;
+    --border-color: #e4e5e7;
+  }
+  /* Cards: sin borde, solo fondo gris y shadow sutil */
+  .card {
+    border-color: transparent;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  /* Item rows también */
+  .item-row {
+    border-color: transparent;
+    background: var(--bg-surface);
+  }
   /* Header: compact, no text labels in nav */
-  .app-header { padding: 0 12px; }
+  .app-header { padding: 0 12px; background: #ffffff; }
   .biz-slogan  { display: none; }
   .biz-name    { font-size: .85rem; }
   .nav-btn span { display: none; }   /* hide text labels, keep icons */
