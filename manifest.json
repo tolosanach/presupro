@@ -1,0 +1,37 @@
+{
+  "name": "PresuPro Studio",
+  "short_name": "PresuPro",
+  "description": "Creá presupuestos profesionales en minutos y compartílos con tus clientes",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f4c75",
+  "theme_color": "#0f4c75",
+  "lang": "es-AR",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Nuevo presupuesto",
+      "short_name": "Nuevo",
+      "description": "Crear un nuevo presupuesto",
+      "url": "./?action=new",
+      "icons": [{ "src": "./icons/icon.svg", "sizes": "any" }]
+    }
+  ]
+}

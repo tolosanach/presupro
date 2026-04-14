@@ -15,6 +15,15 @@
 
 
   <link rel="stylesheet" href="styles.css" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0f4c75" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PresuPro" />
+  <link rel="apple-touch-icon" href="./icons/icon.svg" />
 </head>
 
 <!-- ══════════════════════════════════════════ APP LOGIN SCREEN ══ -->
@@ -900,5 +909,67 @@ Válido hasta: {fecha} — {negocio}</div>
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════ PWA INSTALL BANNER ══ -->
+<div id="pwa-install-banner" class="pwa-banner hidden" role="banner" aria-label="Instalar aplicación">
+  <img src="./icons/icon.svg" class="pwa-banner-icon" alt="" aria-hidden="true" />
+  <div class="pwa-banner-text">
+    <strong>Instalá PresuPro</strong>
+    <span>Accedé desde la pantalla de inicio</span>
+  </div>
+  <button class="pwa-banner-install" id="pwa-install-btn">Instalar</button>
+  <button class="pwa-banner-dismiss" id="pwa-dismiss-btn" aria-label="Cerrar">
+    <i class="fa-solid fa-xmark"></i>
+  </button>
+</div>
+
+<script>
+/* ── Service Worker ── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
+
+/* ── Install banner ── */
+(function() {
+  var deferredPrompt = null;
+  var banner         = document.getElementById('pwa-install-banner');
+  var installBtn     = document.getElementById('pwa-install-btn');
+  var dismissBtn     = document.getElementById('pwa-dismiss-btn');
+
+  if (sessionStorage.getItem('pwa-dismissed')) return;
+
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    setTimeout(function() {
+      if (banner) banner.classList.remove('hidden');
+    }, 3000);
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', function() {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function() {
+        deferredPrompt = null;
+        banner.classList.add('hidden');
+      });
+    });
+  }
+
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', function() {
+      banner.classList.add('hidden');
+      sessionStorage.setItem('pwa-dismissed', '1');
+    });
+  }
+
+  window.addEventListener('appinstalled', function() {
+    if (banner) banner.classList.add('hidden');
+  });
+})();
+</script>
 </body>
 </html>
