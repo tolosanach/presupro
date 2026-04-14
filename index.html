@@ -909,6 +909,16 @@ Válido hasta: {fecha} — {negocio}</div>
   </div>
 </div>
 
+<!-- ════════════════════════════════════ MOBILE SCROLL PILLS ══ -->
+<button id="pill-to-form" class="mobile-pill pill-bottom" aria-label="Ir al formulario">
+  Rellená los datos
+  <i class="fa-solid fa-chevron-down"></i>
+</button>
+<button id="pill-to-preview" class="mobile-pill pill-top pill-hidden" aria-label="Ver vista previa">
+  <i class="fa-solid fa-chevron-up"></i>
+  Previsualizá
+</button>
+
 <!-- ═══════════════════════════════════════ PWA INSTALL BANNER ══ -->
 <div id="pwa-install-banner" class="pwa-banner hidden" role="banner" aria-label="Instalar aplicación">
   <img src="./icons/icon.svg" class="pwa-banner-icon" alt="" aria-hidden="true" />
@@ -930,6 +940,44 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.warn('SW registration failed:', err));
   });
 }
+
+/* ── Mobile scroll pills ── */
+(function() {
+  var mq         = window.matchMedia('(max-width: 768px)');
+  var pillBottom = document.getElementById('pill-to-form');
+  var pillTop    = document.getElementById('pill-to-preview');
+  var formPanel  = document.querySelector('.form-panel');
+  var previewPanel = document.querySelector('.preview-panel');
+  if (!pillBottom || !pillTop || !formPanel) return;
+
+  var observer = new IntersectionObserver(function(entries) {
+    var isFormVisible = entries[0].isIntersecting;
+    pillBottom.classList.toggle('pill-hidden', isFormVisible);
+    pillTop.classList.toggle('pill-hidden', !isFormVisible);
+  }, { threshold: 0.15 });
+
+  function setup(active) {
+    if (active) {
+      observer.observe(formPanel);
+    } else {
+      observer.unobserve(formPanel);
+      pillBottom.classList.add('pill-hidden');
+      pillTop.classList.add('pill-hidden');
+    }
+  }
+
+  pillBottom.addEventListener('click', function() {
+    formPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  pillTop.addEventListener('click', function() {
+    previewPanel
+      ? previewPanel.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      : window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  mq.addEventListener('change', function(e) { setup(e.matches); });
+  setup(mq.matches);
+})();
 
 /* ── Install banner ── */
 (function() {

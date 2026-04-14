@@ -172,6 +172,76 @@ a { color: var(--text-main); }
   .preview-panel { order: -1; max-height: 480px; }
 }
 
+/* ── MOBILE: preview full-screen + scroll pills ───────────────────── */
+@media (max-width: 768px) {
+  /* Remove padding so preview goes edge-to-edge */
+  #view-generator.view { padding: 0; }
+
+  .generator-layout { display: block; gap: 0; }
+
+  /* Preview fills the viewport below the header */
+  .preview-panel {
+    position: relative; top: auto;
+    height: calc(100svh - var(--header-height));
+    max-height: none;
+    border-radius: 0;
+    border-left: none; border-right: none; border-top: none;
+    order: -1;
+  }
+  .preview-header { display: none; } /* replaced by pills */
+  .preview-scroll  { padding: 12px; }
+
+  /* Form gets breathing room below the preview */
+  .form-panel { padding: 24px 16px 120px; }
+}
+
+/* ── MOBILE SCROLL PILLS ──────────────────────────────────────────── */
+.mobile-pill {
+  display: none; /* desktop: hidden */
+}
+@media (max-width: 768px) {
+  .mobile-pill {
+    display: flex; align-items: center; justify-content: center; gap: 9px;
+    position: fixed; z-index: 900;
+    left: 50%; transform: translateX(-50%);
+    width: calc(100% - 40px); max-width: 400px;
+    padding: 16px 24px;
+    background: #000;
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    font-family: var(--font-body, 'DM Sans', sans-serif);
+    font-size: .95rem; font-weight: 700;
+    letter-spacing: .01em;
+    cursor: pointer;
+    box-shadow: 0 8px 28px rgba(0,0,0,.28);
+    transition: opacity .25s ease, transform .25s ease, background .15s;
+  }
+  .mobile-pill:active { background: #222; }
+
+  .pill-bottom {
+    bottom: 28px;
+    animation: pillUp .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  .pill-top {
+    top: calc(var(--header-height) + 10px);
+    width: auto; min-width: 160px; max-width: 220px;
+    padding: 12px 20px;
+    font-size: .85rem;
+    animation: pillDown .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  .pill-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(10px);
+  }
+  .pill-top.pill-hidden {
+    transform: translateX(-50%) translateY(-10px);
+  }
+}
+@keyframes pillUp   { from { opacity:0; transform:translateX(-50%) translateY(20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+@keyframes pillDown { from { opacity:0; transform:translateX(-50%) translateY(-20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+
 /* ── CARDS ────────────────────────────────────────────────────────── */
 .card {
   background: var(--bg-surface);
