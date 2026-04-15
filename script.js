@@ -1545,9 +1545,10 @@ function switchAdminTab(tab,btn) {
   if(tab==='services')      renderServicesAdmin();
   if(tab==='whatsapp')      populateWAForm();
   if(tab==='integrations')  populateIntegrationsForm();
-  /* Mobile: update title */
+  /* Mobile: update title and close drawer */
   var titleEl=el('admin-tab-title-mobile');
   if(titleEl && btn) titleEl.textContent=btn.textContent.trim();
+  closeAdminDrawer();
 }
 /* ══ TOUR DE ONBOARDING ══════════════════════════════════════════════ */
 var TOUR_STEPS = [
