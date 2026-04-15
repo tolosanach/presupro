@@ -371,6 +371,24 @@
       </button>
     </div>
 
+    <div class="history-metrics">
+      <div class="metric-card">
+        <span class="metric-label">Este mes</span>
+        <strong id="metric-month-count">0</strong>
+        <span class="metric-meta">presupuestos</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Aceptados</span>
+        <strong id="metric-accepted-count">0</strong>
+        <span class="metric-meta" id="metric-accept-rate">0% conversión</span>
+      </div>
+      <div class="metric-card">
+        <span class="metric-label">Facturado</span>
+        <strong id="metric-billed-amount">$0</strong>
+        <span class="metric-meta">en presupuesto aceptado</span>
+      </div>
+    </div>
+
     <div class="history-search-bar">
       <div class="hsb-field hsb-text">
         <i class="fa-solid fa-magnifying-glass"></i>
@@ -594,7 +612,7 @@
               </div>
             </div>
 
-            <button class="btn btn-primary btn-save-float" onclick="saveBrandConfig()">
+            <button id="btn-save-brand" class="btn btn-primary btn-save-float" onclick="saveBrandConfig()" disabled>
               <i class="fa-solid fa-check"></i> Guardar Cambios
             </button>
           </div>
@@ -646,7 +664,7 @@
                 <textarea id="cfg-legal" rows="3" placeholder="Ej: Los precios tienen validez por el plazo indicado..."></textarea>
               </div>
             </div>
-            <button class="btn btn-primary btn-save-float" onclick="saveBusinessConfig()">
+            <button id="btn-save-business" class="btn btn-primary btn-save-float" onclick="saveBusinessConfig()" disabled>
               <i class="fa-solid fa-check"></i> Guardar Datos
             </button>
           </div>
@@ -715,7 +733,7 @@
                 </div>
               </div>
             </div>
-            <button class="btn btn-primary btn-save-float" onclick="saveBudgetConfig()">
+            <button id="btn-save-budget" class="btn btn-primary btn-save-float" onclick="saveBudgetConfig()" disabled>
               <i class="fa-solid fa-check"></i> Guardar Configuración
             </button>
           </div>
@@ -792,7 +810,7 @@ Válido hasta: {fecha} — {negocio}</div>
                 <div id="cfg-wa-preview" class="wa-bubble">—</div>
               </div>
             </div>
-            <button class="btn btn-primary btn-save-float" onclick="saveWAConfig()">
+            <button id="btn-save-whatsapp" class="btn btn-primary btn-save-float" onclick="saveWAConfig()" disabled>
               <i class="fa-solid fa-check"></i> Guardar mensaje
             </button>
           </div>
@@ -826,7 +844,7 @@ Válido hasta: {fecha} — {negocio}</div>
               </div>
             </div>
 
-            <button class="btn btn-primary btn-save-float" onclick="saveSupabaseConfig()">
+            <button id="btn-save-security" class="btn btn-primary btn-save-float" onclick="saveSupabaseConfig()" disabled>
               <i class="fa-solid fa-check"></i> Guardar configuración
             </button>
           </div>

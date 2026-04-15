@@ -1346,6 +1346,7 @@ var historyFilter = { text:'', dateFrom:'', dateTo:'' };
 function renderHistory() {
   var container=el('history-list'); if(!container) return;
   var list=getFilteredHistory();
+  renderHistoryMetrics();
   if(!STATE.history||STATE.history.length===0){
     container.innerHTML='<div class="empty-state"><i class="fa-solid fa-folder-open"></i><h3>Sin presupuestos guardados</h3><p>Creá tu primer presupuesto y guardalo para verlo aquí.</p></div>';
     updateHistoryCount(0,0); return;
@@ -1422,6 +1423,44 @@ function updateHistoryCount(shown, total) {
   var el_count=el('history-count'); if(!el_count) return;
   if(total===0) { el_count.textContent=''; return; }
   el_count.textContent = shown===total ? total+' presupuesto'+(total!==1?'s':'') : shown+' de '+total+' resultado'+(shown!==1?'s':'');
+}
+
+function renderHistoryMetrics() {
+  var total = STATE.history.length;
+  var monthCount = 0;
+  var accepted = 0;
+  var billed = 0;
+  var now = new Date();
+  var currentMonth = now.getMonth();
+  var currentYear = now.getFullYear();
+
+  STATE.history.forEach(function(h) {
+    var dateStr = (h.meta && h.meta.date) || h.savedAt || '';
+    var date = dateStr ? new Date(dateStr) : null;
+    if (date && date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
+      monthCount += 1;
+    }
+    if (h.status === 'accepted') {
+      accepted += 1;
+      billed += (h.totals && Number(h.totals.total)) || 0;
+    }
+  });
+
+  var acceptRate = total ? Math.round(accepted / total * 100) : 0;
+  setText('metric-month-count', monthCount);
+  setText('metric-accepted-count', accepted);
+  setText('metric-accept-rate', acceptRate + '% conversión');
+  setText('metric-billed-amount', formatCurrency(billed));
+}
+
+function formatCurrency(amount) {
+  if (amount === 0) return '$0';
+  return '$' + amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function setText(id, value) {
+  var el = el(id); if (!el) return;
+  el.textContent = value;
 }
  
 function onHistorySearch() {
@@ -1510,10 +1549,23 @@ function closeAdminModal(){
  
 /* ══ AVISO DE CAMBIOS SIN GUARDAR ═══════════════════════════════════ */
 var _adminDirty = false; /* true cuando hay cambios sin guardar */
- 
-function markDirty() { _adminDirty = true; }
-function markClean() { _adminDirty = false; }
- 
+
+function markDirty() {
+  _adminDirty = true;
+  var btns = document.querySelectorAll('.btn-save-float:not(:disabled)');
+  var currentTab = document.querySelector('.admin-tab.active');
+  if (currentTab) {
+    var tabName = currentTab.getAttribute('data-tab');
+    var btn = el('btn-save-' + tabName);
+    if (btn) btn.disabled = false;
+  }
+}
+function markClean() {
+  _adminDirty = false;
+  var btns = document.querySelectorAll('.btn-save-float');
+  btns.forEach(function(btn) { btn.disabled = true; });
+}
+
 /* Attach dirty listeners to all admin inputs after panel opens */
 function attachDirtyListeners() {
   var inputs = document.querySelectorAll('.admin-content input, .admin-content textarea, .admin-content select');
@@ -2008,6 +2060,7 @@ function saveSupabaseConfig() {
   localStorage.setItem('pp_sb_url', url);
   localStorage.setItem('pp_sb_key', key);
   SB_ENABLED(); // trigger update
+  markClean();
   toast('Configuración de Supabase guardada ✓', 'success');
 }
  
