@@ -612,9 +612,15 @@ function renderBudgetHTML(d) {
   var c=totals;
   var cp=brand.colorPrimary||'#1a1a1a', cs=brand.colorSecondary||'#4a4a4a', ca=brand.colorAccent||'#888';
  
-  var heroBlock=biz.logo
-    ?'<img src="'+biz.logo+'" class="bdoc-logo" alt="'+escHtml(biz.bizName||'')+'" style="max-height:'+(biz.logoSize||60)+'px;max-width:'+Math.round((biz.logoSize||60)*3)+'px" />'
-    :'<div class="bdoc-hero-name">'+escHtml(biz.bizName||'Mi Negocio')+'</div>';
+  var heroBlock;
+  if (biz.logo) {
+    heroBlock = '<div class="bdoc-hero-logo-wrap">'+
+      '<img src="'+biz.logo+'" class="bdoc-logo" alt="'+escHtml(biz.bizName||'')+'" style="max-height:'+(biz.logoSize||60)+'px;max-width:'+Math.round((biz.logoSize||60)*3)+'px" />'+
+      (biz.showNameUnderLogo ? '<div class="bdoc-logo-name" style="color:'+cp+'">'+escHtml(biz.bizName||'')+'</div>' : '')+
+    '</div>';
+  } else {
+    heroBlock = '<div class="bdoc-hero-name">'+escHtml(biz.bizName||'Mi Negocio')+'</div>';
+  }
   var heroSub=biz.slogan?'<div class="bdoc-hero-sub">'+escHtml(biz.slogan).toUpperCase()+'</div>':'';
  
   var itemsRows='';
@@ -733,9 +739,15 @@ function buildPrintHTML(data) {
  
   /* ── Compact header for repeated pages ── */
   var logoSize = biz.logoSize || 60;
-  var logoHTML = biz.logo
-    ? '<img src="' + biz.logo + '" style="max-height:' + Math.round(logoSize * 0.55) + 'px;max-width:140px;object-fit:contain;display:block;" alt="" />'
-    : '<span style="font-family:\'DM Serif Display\',serif;font-size:16px;font-weight:400;letter-spacing:-0.5px;color:' + p + '">' + escHtml(biz.bizName || '') + '</span>';
+  var logoHTML;
+  if (biz.logo) {
+    logoHTML = '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;">'+
+      '<img src="'+biz.logo+'" style="max-height:'+Math.round(logoSize*0.55)+'px;max-width:140px;object-fit:contain;display:block;" alt="" />'+
+      (biz.showNameUnderLogo ? '<span style="font-family:\'DM Sans\',sans-serif;font-size:8px;font-weight:700;letter-spacing:.04em;color:'+p+';text-transform:uppercase">'+escHtml(biz.bizName||'')+'</span>' : '')+
+    '</div>';
+  } else {
+    logoHTML = '<span style="font-family:\'DM Serif Display\',serif;font-size:16px;font-weight:400;letter-spacing:-0.5px;color:'+p+';max-width:140px;display:inline-block;line-height:1.2">'+escHtml(biz.bizName||'')+'</span>';
+  }
  
   /* ── Fixed header HTML ── */
   var pageHeader =
@@ -1602,11 +1614,20 @@ function closeAdminDrawer() {
   if(s) s.classList.remove('drawer-open');
   if(b) b.classList.remove('active');
 }
+function updateNameUnderLogoState() {
+  var hasLogo = !!(STATE.businessConfig.logo);
+  var wrap = el('wrap-show-name-logo');
+  var chk  = el('cfg-show-name-under-logo');
+  if (wrap) { wrap.style.opacity = hasLogo ? '1' : '.4'; wrap.style.pointerEvents = hasLogo ? '' : 'none'; }
+  if (chk)  { chk.disabled = !hasLogo; if (!hasLogo) chk.checked = false; }
+}
 function populateAdminForms() {
   var b=STATE.businessConfig,br=STATE.brandConfig,bc=STATE.budgetConfig;
   setVal('cfg-biz-name',b.bizName||''); setVal('cfg-biz-slogan',b.slogan||'');
   setVal('cfg-footer-text',b.footerText||''); setVal('cfg-signature',b.signature||''); setVal('cfg-thank-you',b.thankYou||'');
   if(b.logo){var pv=el('cfg-logo-preview');if(pv){pv.src=b.logo;show('cfg-logo-preview');hide('cfg-logo-placeholder');}var cb=el('btn-crop-logo');if(cb)cb.style.display='';} applyLogoSizeInput();
+  var snul=el('cfg-show-name-under-logo'); if(snul) snul.checked=!!b.showNameUnderLogo;
+  updateNameUnderLogoState();
   setVal('cfg-color-primary',br.colorPrimary||'#1b9aaa'); setVal('cfg-color-secondary',br.colorSecondary||'#0f4c75'); setVal('cfg-color-accent',br.colorAccent||'#f0a500');
   syncHexLabels(); setVal('cfg-font',br.font||'DM Sans');
   qsa('.preset-btn').forEach(function(btn){btn.classList.toggle('active',btn.dataset.preset===br.preset);});
@@ -1622,6 +1643,7 @@ function populateAdminForms() {
 function saveBrandConfig() {
   var b=STATE.businessConfig,br=STATE.brandConfig;
   b.bizName=elVal('cfg-biz-name'); b.slogan=elVal('cfg-biz-slogan'); b.footerText=elVal('cfg-footer-text'); b.signature=elVal('cfg-signature'); b.thankYou=elVal('cfg-thank-you');
+  var snul=el('cfg-show-name-under-logo'); b.showNameUnderLogo = snul ? snul.checked : false;
   br.colorPrimary=elVal('cfg-color-primary')||br.colorPrimary; br.colorSecondary=elVal('cfg-color-secondary')||br.colorSecondary; br.colorAccent=elVal('cfg-color-accent')||br.colorAccent; br.font=elVal('cfg-font')||'DM Sans';
   save(KEYS.businessConfig,b); save(KEYS.brandConfig,br); applyBrand(); updatePreview(); markClean(); markClean(); markClean(); markClean(); markClean(); toast('Identidad guardada \u2713','success');
 }
@@ -1696,10 +1718,10 @@ function handleLogoUpload(event) {
   var file=event.target.files[0]; if(!file) return;
   if(file.size>2*1024*1024){toast('Máx 2MB','error');return;}
   var reader=new FileReader();
-  reader.onload=function(e){STATE.businessConfig.logo=e.target.result;var pv=el('cfg-logo-preview');if(pv){pv.src=e.target.result;show('cfg-logo-preview');hide('cfg-logo-placeholder');}save(KEYS.businessConfig,STATE.businessConfig);applyBrand();updatePreview();var cb=el('btn-crop-logo');if(cb)cb.style.display='';toast('Logo cargado \u2713','success');};
+  reader.onload=function(e){STATE.businessConfig.logo=e.target.result;var pv=el('cfg-logo-preview');if(pv){pv.src=e.target.result;show('cfg-logo-preview');hide('cfg-logo-placeholder');}save(KEYS.businessConfig,STATE.businessConfig);applyBrand();updatePreview();var cb=el('btn-crop-logo');if(cb)cb.style.display='';updateNameUnderLogoState();toast('Logo cargado \u2713','success');};
   reader.readAsDataURL(file);
 }
-function removeLogo(){STATE.businessConfig.logo='';var pv=el('cfg-logo-preview');if(pv){pv.src='';hide('cfg-logo-preview');show('cfg-logo-placeholder');}var cb=el('btn-crop-logo');if(cb)cb.style.display='none';save(KEYS.businessConfig,STATE.businessConfig);applyBrand();updatePreview();toast('Logo removido','info');}
+function removeLogo(){STATE.businessConfig.logo='';STATE.businessConfig.showNameUnderLogo=false;var pv=el('cfg-logo-preview');if(pv){pv.src='';hide('cfg-logo-preview');show('cfg-logo-placeholder');}var cb=el('btn-crop-logo');if(cb)cb.style.display='none';save(KEYS.businessConfig,STATE.businessConfig);applyBrand();updatePreview();updateNameUnderLogoState();toast('Logo removido','info');}
  
 /* ══ CONFIRMAR ═══════════════════════════════════════════════════════ */
 var confirmCb=null;

@@ -614,8 +614,10 @@ select { cursor: pointer; }
 .bdoc-head { display:flex; justify-content:space-between; align-items:flex-start; padding:36px 40px 28px; }
 .bdoc-head-left { flex:1; }
 .bdoc-head-right { display:flex; flex-direction:column; align-items:flex-end; }
-.bdoc-hero-name { font-family:'DM Serif Display',serif; font-size:38px; font-weight:400; letter-spacing:-1.5px; color:var(--color-primary,#1a1a1a); line-height:.95; }
+.bdoc-hero-name { font-family:'DM Serif Display',serif; font-size:28px; font-weight:400; letter-spacing:-1px; color:var(--color-primary,#1a1a1a); line-height:1; max-width:30%; word-break:break-word; }
 .bdoc-logo { object-fit:contain; display:block; }
+.bdoc-hero-logo-wrap { display:flex; flex-direction:column; align-items:flex-start; gap:5px; }
+.bdoc-logo-name { font-family:'DM Sans',sans-serif; font-size:8px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; opacity:.85; margin-top:1px; }
 .bdoc-hero-sub { font-size:7.5px; letter-spacing:.2em; color:var(--color-secondary,#555); margin-top:8px; font-weight:500; text-transform:uppercase; }
 .bdoc-meta-table { border-collapse:collapse; font-size:9px; }
 .bmt-k { color:#aaa; letter-spacing:.1em; font-size:7px; font-weight:600; padding:2px 12px 2px 0; text-align:right; }
