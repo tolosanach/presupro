@@ -860,8 +860,10 @@ function buildPDFStyles(brand) {
  
     /* ── DOCUMENT HEADER (shown only on first page via @media screen, hidden in print) ── */
     '.bdoc-head{display:flex;justify-content:space-between;align-items:flex-start;padding:32px 48px 24px;}',
-    ".bdoc-hero-name{font-family:'DM Serif Display',serif;font-size:40px;font-weight:400;letter-spacing:-1.5px;color:var(--cp);line-height:.95;}",
+    ".bdoc-hero-name{font-family:'DM Sans',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.5px;color:var(--cp);line-height:1.2;max-width:42%;word-break:break-word;}",
     '.bdoc-logo{object-fit:contain;display:block;}',
+    '.bdoc-hero-logo-wrap{display:flex;flex-direction:column;align-items:flex-start;gap:10px;}',
+    '.bdoc-logo-name{font-family:\'DM Sans\',sans-serif;font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.85;}',
     '.bdoc-hero-sub{font-size:7.5px;letter-spacing:.2em;color:var(--cs);margin-top:7px;font-weight:500;text-transform:uppercase;}',
     '.bdoc-head-right{display:flex;flex-direction:column;align-items:flex-end;}',
     '.bdoc-meta-table{border-collapse:collapse;font-size:9px;}',
@@ -1559,7 +1561,11 @@ var _tourStep = 0;
 function startTour() {
   if (localStorage.getItem(_tenantId + '_tour_done')) return;
   _tourStep = 0;
+  /* Show all three elements — they are now direct body children so
+     position:fixed is relative to the viewport, not a containing block */
   el('tour-overlay').classList.remove('hidden');
+  el('tour-highlight').classList.remove('hidden');
+  el('tour-tooltip').classList.remove('hidden');
   showTourStep(0);
 }
 function showTourStep(step) {
@@ -1572,27 +1578,35 @@ function showTourStep(step) {
   }).join('');
   /* Next / finish label */
   el('tour-next-btn').textContent = step < TOUR_STEPS.length-1 ? 'Siguiente →' : '¡Empezar! ✓';
-  /* Position highlight */
+  /* Position highlight and tooltip against the target element */
   if (target) {
     var r = target.getBoundingClientRect();
-    var pad = 6;
+    var pad = 8;
     var h = el('tour-highlight');
     h.style.top    = (r.top - pad) + 'px';
     h.style.left   = (r.left - pad) + 'px';
     h.style.width  = (r.width + pad*2) + 'px';
     h.style.height = (r.height + pad*2) + 'px';
-    /* Tooltip: below target, left-aligned but clamped */
+    /* Tooltip: below target by default, above if not enough space */
     var tt = el('tour-tooltip');
     var ttW = 280;
+    var ttH = 140; /* approximate */
     var tipLeft = Math.max(12, Math.min(r.left, window.innerWidth - ttW - 12));
-    tt.style.top  = (r.bottom + 14) + 'px';
+    var tipTop  = r.bottom + 16;
+    if (tipTop + ttH > window.innerHeight - 16) {
+      tipTop = r.top - ttH - 16; /* flip above */
+    }
+    tt.style.top  = Math.max(12, tipTop) + 'px';
     tt.style.left = tipLeft + 'px';
   }
 }
 function tourNext() {
   _tourStep++;
   if (_tourStep >= TOUR_STEPS.length) {
+    /* Hide all three tour elements */
     el('tour-overlay').classList.add('hidden');
+    el('tour-highlight').classList.add('hidden');
+    el('tour-tooltip').classList.add('hidden');
     localStorage.setItem(_tenantId + '_tour_done', '1');
   } else {
     showTourStep(_tourStep);

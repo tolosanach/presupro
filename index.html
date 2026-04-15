@@ -943,14 +943,16 @@ Válido hasta: {fecha} — {negocio}</div>
 </div>
 
 <!-- ══════════════════════════════════════════ ONBOARDING TOUR ══ -->
-<div id="tour-overlay" class="hidden">
-  <div id="tour-highlight"></div>
-  <div id="tour-tooltip" class="tour-tooltip">
-    <p id="tour-text"></p>
-    <div class="tour-footer">
-      <div class="tour-dots" id="tour-dots"></div>
-      <button id="tour-next-btn" onclick="tourNext()">Siguiente</button>
-    </div>
+<!-- Dark backdrop only — must NOT contain fixed children (containing block issue) -->
+<div id="tour-overlay" class="hidden"></div>
+<!-- Spotlight ring — direct body child so position:fixed works vs viewport -->
+<div id="tour-highlight" class="hidden"></div>
+<!-- Tooltip — direct body child -->
+<div id="tour-tooltip" class="tour-tooltip hidden">
+  <p id="tour-text"></p>
+  <div class="tour-footer">
+    <div class="tour-dots" id="tour-dots"></div>
+    <button id="tour-next-btn" onclick="tourNext()">Siguiente →</button>
   </div>
 </div>
 
