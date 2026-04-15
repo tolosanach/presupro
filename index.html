@@ -405,19 +405,16 @@
     <div id="admin-panel" class="admin-screen hidden">
       <div class="admin-panel-layout">
 
-        <!-- Mobile: top bar with hamburger + current tab title + close -->
+        <!-- Mobile: top bar with close button only (tabs always visible) -->
         <div class="admin-mobile-topbar">
-          <button class="admin-menu-btn" onclick="toggleAdminDrawer()" aria-label="Menú">
-            <i class="fa-solid fa-bars"></i>
-          </button>
           <span id="admin-tab-title-mobile" class="admin-mobile-title">Identidad</span>
           <button class="admin-close-btn" onclick="closeAdminModal()" aria-label="Cerrar">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
 
-        <!-- Mobile backdrop for drawer -->
-        <div class="admin-drawer-backdrop" id="admin-drawer-backdrop" onclick="closeAdminDrawer()"></div>
+        <!-- Mobile backdrop for drawer - removed since no drawer -->
+        <!-- <div class="admin-drawer-backdrop" id="admin-drawer-backdrop" onclick="closeAdminDrawer()"></div> -->
 
         <!-- Sidebar tabs -->
         <nav class="admin-sidebar" id="admin-sidebar">
@@ -594,8 +591,8 @@
               </div>
             </div>
 
-            <button class="btn btn-primary" onclick="saveBrandConfig()">
-              <i class="fa-solid fa-check"></i> Guardar Identidad
+            <button class="btn btn-primary btn-save-float" onclick="saveBrandConfig()">
+              <i class="fa-solid fa-check"></i> Guardar Cambios
             </button>
           </div>
 
@@ -646,7 +643,7 @@
                 <textarea id="cfg-legal" rows="3" placeholder="Ej: Los precios tienen validez por el plazo indicado..."></textarea>
               </div>
             </div>
-            <button class="btn btn-primary" onclick="saveBusinessConfig()">
+            <button class="btn btn-primary btn-save-float" onclick="saveBusinessConfig()">
               <i class="fa-solid fa-check"></i> Guardar Datos
             </button>
           </div>
@@ -656,7 +653,7 @@
             <h3 class="tab-title">Catálogo de Productos y Servicios</h3>
             <div class="services-toolbar">
               <button class="btn btn-primary" onclick="openServiceModal()">
-                <i class="fa-solid fa-plus"></i> Nuevo Servicio
+                <i class="fa-solid fa-plus"></i> Nuevo Ítem
               </button>
             </div>
             <div id="services-list" class="services-list"></div>
@@ -715,7 +712,7 @@
                 </div>
               </div>
             </div>
-            <button class="btn btn-primary" onclick="saveBudgetConfig()">
+            <button class="btn btn-primary btn-save-float" onclick="saveBudgetConfig()">
               <i class="fa-solid fa-check"></i> Guardar Configuración
             </button>
           </div>
@@ -792,7 +789,7 @@ Válido hasta: {fecha} — {negocio}</div>
                 <div id="cfg-wa-preview" class="wa-bubble">—</div>
               </div>
             </div>
-            <button class="btn btn-primary" onclick="saveWAConfig()">
+            <button class="btn btn-primary btn-save-float" onclick="saveWAConfig()">
               <i class="fa-solid fa-check"></i> Guardar mensaje
             </button>
           </div>
@@ -826,7 +823,7 @@ Válido hasta: {fecha} — {negocio}</div>
               </div>
             </div>
 
-            <button class="btn btn-primary" onclick="saveSupabaseConfig()">
+            <button class="btn btn-primary btn-save-float" onclick="saveSupabaseConfig()">
               <i class="fa-solid fa-check"></i> Guardar configuración
             </button>
           </div>

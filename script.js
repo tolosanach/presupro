@@ -1545,10 +1545,9 @@ function switchAdminTab(tab,btn) {
   if(tab==='services')      renderServicesAdmin();
   if(tab==='whatsapp')      populateWAForm();
   if(tab==='integrations')  populateIntegrationsForm();
-  /* Mobile: update title and close drawer */
+  /* Mobile: update title */
   var titleEl=el('admin-tab-title-mobile');
   if(titleEl && btn) titleEl.textContent=btn.textContent.trim();
-  closeAdminDrawer();
 }
 /* ══ TOUR DE ONBOARDING ══════════════════════════════════════════════ */
 var TOUR_STEPS = [
@@ -1759,6 +1758,38 @@ function switchView(name){
   /* Hide scroll pills on non-generator views */
   document.body.classList.toggle('view-not-generator', name !== 'generator');
 }
+
+/* Swipe gestures for view navigation on mobile */
+var _touchStartX = 0, _touchStartY = 0;
+document.addEventListener('touchstart', function(e) {
+  _touchStartX = e.touches[0].clientX;
+  _touchStartY = e.touches[0].clientY;
+}, { passive: true });
+document.addEventListener('touchend', function(e) {
+  if (!e.changedTouches.length) return;
+  var touchEndX = e.changedTouches[0].clientX;
+  var touchEndY = e.changedTouches[0].clientY;
+  var deltaX = touchEndX - _touchStartX;
+  var deltaY = touchEndY - _touchStartY;
+  var absDeltaX = Math.abs(deltaX);
+  var absDeltaY = Math.abs(deltaY);
+  
+  // Only trigger if horizontal swipe is dominant and long enough
+  if (absDeltaX > absDeltaY && absDeltaX > 50) {
+    var currentView = document.querySelector('.view.active');
+    if (!currentView) return;
+    var currentViewName = currentView.id.replace('view-', '');
+    
+    if (deltaX > 0 && currentViewName === 'history') {
+      // Swipe right on history -> go to generator
+      switchView('generator');
+    } else if (deltaX < 0 && currentViewName === 'generator') {
+      // Swipe left on generator -> go to history
+      switchView('history');
+    }
+  }
+}, { passive: true });
+
 function togglePwVisibility(inputId,btn){var inp=el(inputId);if(!inp)return;var isText=inp.type==='text';inp.type=isText?'password':'text';btn.innerHTML=isText?'<i class="fa-solid fa-eye"></i>':'<i class="fa-solid fa-eye-slash"></i>';}
  
 /* ══ TOASTS ══════════════════════════════════════════════════════════ */
